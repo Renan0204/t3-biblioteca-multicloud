@@ -45,7 +45,7 @@
 |---|---|
 | Integrantes | Adrian Souza · Fernando Cardoso · Victor Caitano · Renan Oliveira · Guilherme Vitor |
 | Data da elaboração | 02/09/2026 |
-| Repositório da equipe | `https://github.com/...` *(preencher, com acesso liberado ao professor)* |
+| Repositório da equipe | https://github.com/Renan0204/t3-biblioteca-multicloud |
 | Versão da aplicação utilizada | `dpRanghetti/biblioteca`, branch `master`, commit `5a40964` (2026-06-05) — confirmar no clone da equipe |
 
 ---
@@ -575,8 +575,8 @@ Opção A — clonar este repositório no servidor:
 
 ```bash
 ssh root@IP_DA_VPS
-git clone https://github.com/SUA_EQUIPE/biblioteca-multicloud.git
-cd biblioteca-multicloud
+git clone https://github.com/Renan0204/t3-biblioteca-multicloud.git
+cd t3-biblioteca-multicloud
 ```
 
 Opção B — copiar apenas a pasta `k8s/` da sua máquina:
