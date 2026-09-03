@@ -1,0 +1,28 @@
+# Objetivo (Aula 06, slide 17): reduzir o contexto de build, acelerar o build,
+# evitar copiar artefatos locais e nao enviar arquivos sensiveis para a imagem.
+
+# Controle de versao e IDE
+.git
+.gitignore
+.github
+.idea
+.vscode
+
+# Artefatos de build (serao gerados dentro do container)
+target/
+*.jar
+
+# Documentacao e manifestos (nao fazem parte da imagem)
+docs/
+k8s/
+*.md
+
+# Logs e temporarios
+*.log
+
+# Credenciais e configuracao local (nunca vao para a imagem)
+.env
+*.pem
+*.key
+kubeconfig
+*.kubeconfig

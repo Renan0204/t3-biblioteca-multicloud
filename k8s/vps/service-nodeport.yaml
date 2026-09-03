@@ -1,0 +1,20 @@
+# Exposicao na VPS com K3s (Aula 06, slide 37).
+# NodePort abre a porta 30080 em todos os nos; o acesso de teste fica em
+# http://IP_DA_VPS:30080/login
+# Para producao, prefira Ingress (Traefik ja vem no K3s) + HTTPS - ver
+# ingress-traefik.yaml neste diretorio.
+apiVersion: v1
+kind: Service
+metadata:
+  name: biblioteca
+  labels:
+    app: biblioteca
+spec:
+  type: NodePort
+  selector:
+    app: biblioteca
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 30080

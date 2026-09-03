@@ -1,0 +1,17 @@
+# Segredos - NUNCA versionar (Aula 06, slides 22 e 54)
+k8s/**/secret.yaml
+secret.yaml
+*.secret.yaml
+.env
+
+# Kubeconfig e credenciais de nuvem
+kubeconfig
+*.kubeconfig
+.aws/
+azure.json
+*.pem
+*.key
+
+# Build
+target/
+*.jar

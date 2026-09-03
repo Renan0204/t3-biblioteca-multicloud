@@ -1,0 +1,675 @@
+<title>Biblioteca Multicloud</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@500;700;900&family=Red+Hat+Text:wght@400;500;600&family=Red+Hat+Mono:wght@400;500&display=swap">
+
+<style>
+  :root{
+    color-scheme: dark;
+    --ground:#0E1420;
+    --surface:#161E2E;
+    --surface-2:#1F2A3D;
+    --line:#2E3C54;
+    --ink:#EAEEF6;
+    --ink-dim:#9AA7BE;
+    --ink-mute:#67748D;
+    --accent:#83BAD6;
+    --aws:#C97F2C;
+    --azure:#3E7FBE;
+    --hetzner:#CE4640;
+    --ok:#5FB08A;
+
+    --f-display:"Red Hat Display", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-text:"Red Hat Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono:"Red Hat Mono", ui-monospace, "Consolas", monospace;
+
+    --pad:clamp(20px, 4.4vw, 68px);
+    --maxw:1040px;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--f-text);
+    font-size:16px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+  }
+
+  .deck{
+    position:fixed;
+    inset:0;
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    z-index:1;
+  }
+
+  /* ---------- HUD ---------- */
+  .hud{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:16px var(--pad) 14px;
+    border-bottom:1px solid var(--line);
+    font-family:var(--f-mono);
+    font-size:12px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--ink-mute);
+  }
+  .hud strong{ color:var(--ink-dim); font-weight:500; }
+  .hud .counter b{ color:var(--ink); font-weight:500; }
+
+  /* ---------- Stage ---------- */
+  .stage{ position:relative; overflow:hidden; }
+  .slide{
+    position:absolute;
+    inset:0;
+    display:grid;
+    align-content:center;
+    gap:min(3.2vh, 24px);
+    padding:min(6vh, 50px) var(--pad);
+    overflow-y:auto;
+  }
+  .slide[hidden]{ display:none; }
+  @media (prefers-reduced-motion:no-preference){
+    .slide.enter{ animation:rise .34s cubic-bezier(.2,.7,.3,1) both; }
+  }
+  @keyframes rise{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+
+  .wrap{ width:min(100%, var(--maxw)); margin:0 auto; }
+
+  .eyebrow{
+    font-family:var(--f-mono);
+    font-size:clamp(11px, 1.5vw, 13px);
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{ content:""; width:24px; height:2px; background:var(--accent); display:inline-block; flex:none; }
+
+  h1,h2{ font-family:var(--f-display); font-weight:900; margin:0; text-wrap:balance; letter-spacing:-.02em; }
+  h1{ font-size:clamp(2.6rem, 6.2vw, 4.4rem); line-height:1.04; }
+  h2{ font-size:clamp(1.7rem, 4.2vw, 2.9rem); line-height:1.08; }
+  h3{ font-family:var(--f-display); font-weight:700; font-size:1.06rem; margin:0; letter-spacing:-.01em; }
+
+  p{ margin:0; }
+  .lede{ font-size:clamp(1.05rem, 1.9vw, 1.35rem); color:var(--ink-dim); max-width:52ch; }
+  .muted{ color:var(--ink-mute); }
+  .say{ font-size:1.02rem; color:var(--ink-dim); max-width:60ch; }
+
+  /* ---------- panels ---------- */
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 22px;
+  }
+  .grid{ display:grid; gap:16px; }
+  .g2{ grid-template-columns:repeat(2,1fr); }
+  .g3{ grid-template-columns:repeat(3,1fr); }
+  @media (max-width:820px){ .g2,.g3{ grid-template-columns:1fr; } }
+
+  .chip{
+    display:inline-flex; align-items:center; gap:9px;
+    font-family:var(--f-mono); font-size:12.5px; letter-spacing:.04em;
+    color:var(--ink-dim);
+  }
+  .dot{ width:11px; height:11px; border-radius:3px; flex:none; }
+  .dot.aws{ background:var(--aws); }
+  .dot.azure{ background:var(--azure); }
+  .dot.hetzner{ background:var(--hetzner); }
+
+  /* ---------- lists ---------- */
+  ul.ticks{ list-style:none; margin:0; padding:0; display:grid; gap:11px; }
+  ul.ticks li{ display:flex; gap:12px; align-items:flex-start; font-size:1rem; color:var(--ink-dim); }
+  ul.ticks li::before{
+    content:""; width:7px; height:7px; border-radius:2px; background:var(--accent);
+    margin-top:.55em; flex:none;
+  }
+  ul.ticks.ok li::before{
+    content:""; width:9px; height:16px; border:solid var(--ok); border-width:0 2.5px 2.5px 0;
+    transform:rotate(40deg); border-radius:0; background:none; margin-top:.15em; margin-left:2px;
+  }
+
+  ol.steps{ list-style:none; counter-reset:s; margin:0; padding:0; display:grid; gap:13px; }
+  ol.steps li{ counter-increment:s; display:grid; grid-template-columns:auto 1fr; gap:15px; align-items:baseline; font-size:1rem; color:var(--ink-dim); }
+  ol.steps li::before{
+    content:counter(s);
+    font-family:var(--f-mono); font-size:.82rem; color:var(--accent);
+    border:1px solid var(--line); border-radius:7px; padding:4px 10px; background:var(--surface);
+  }
+  ol.steps b{ color:var(--ink); font-weight:600; }
+
+  /* ---------- three-track grid ---------- */
+  .tracks{ display:grid; grid-template-columns:1.2fr 1fr 1fr 1fr; gap:0; border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:.95rem; }
+  .tracks > div{ padding:13px 16px; border-bottom:1px solid var(--line); border-right:1px solid var(--line); display:flex; align-items:center; }
+  .tracks > div:nth-child(4n){ border-right:0; }
+  .tracks > div:nth-last-child(-n+4){ border-bottom:0; }
+  .tracks .rowhead{ font-size:.9rem; color:var(--ink-mute); background:var(--surface); }
+  .tracks .thead{ background:var(--surface); font-family:var(--f-mono); font-size:12.5px; letter-spacing:.03em; color:var(--ink); gap:9px; border-top:3px solid transparent; }
+  .tracks .thead.aws{ border-top-color:var(--aws); }
+  .tracks .thead.azure{ border-top-color:var(--azure); }
+  .tracks .thead.hetzner{ border-top-color:var(--hetzner); }
+  .tracks .val{ background:var(--surface); color:var(--ink-dim); }
+  .tracks .val.no{ color:var(--ink-mute); }
+  .tracks .val.yes{ color:var(--ink); }
+  @media (max-width:820px){
+    .tracks{ grid-template-columns:1fr; font-size:.9rem; }
+    .tracks > div{ border-right:0; }
+    .tracks .rowhead{ margin-top:6px; font-weight:600; color:var(--ink-dim); }
+  }
+
+  /* ---------- cost chart ---------- */
+  .chart{ display:grid; gap:14px; margin-top:6px; }
+  .bar-row{ display:grid; grid-template-columns:130px 1fr; gap:14px; align-items:center; }
+  .bar-row .name{ font-size:.95rem; color:var(--ink-dim); text-align:right; }
+  .track-outer{ position:relative; background:var(--surface-2); border:1px solid var(--line); border-radius:6px; height:40px; overflow:hidden; }
+  .track-outer .fill{
+    position:absolute; left:0; top:0; bottom:0; width:0;
+    border-radius:0 5px 5px 0;
+    transition:width .9s cubic-bezier(.2,.7,.2,1);
+  }
+  .fill.aws{ background:var(--aws); }
+  .fill.azure{ background:var(--azure); }
+  .fill.hetzner{ background:var(--hetzner); }
+  @media (prefers-reduced-motion:reduce){ .track-outer .fill{ transition:none; } }
+  .bar-row .amount{ position:absolute; right:12px; top:50%; transform:translateY(-50%); font-family:var(--f-mono); font-weight:500; font-size:.9rem; color:var(--ink); text-shadow:0 1px 3px rgba(0,0,0,.6); }
+  .gridlines{ margin-left:144px; display:flex; justify-content:space-between; font-family:var(--f-mono); font-size:10.5px; color:var(--ink-mute); margin-top:-4px; }
+  @media (max-width:820px){ .gridlines{ margin-left:0; } }
+
+  .toggle{ display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; font-size:12.5px; }
+  .toggle button{
+    background:var(--surface); color:var(--ink-dim); border:0; padding:8px 14px; cursor:pointer;
+  }
+  .toggle button[aria-pressed="true"]{ background:var(--accent); color:#0b1017; font-weight:600; }
+
+  .headline-stat{ display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; margin-top:20px; }
+  .headline-stat .big{ font-family:var(--f-display); font-weight:900; font-size:clamp(2.2rem,5.4vw,3.3rem); color:var(--ink); letter-spacing:-.03em; }
+
+  .cost-tip{
+    position:fixed; z-index:20; pointer-events:none; opacity:0;
+    background:var(--surface); border:1px solid var(--line); border-radius:9px;
+    padding:11px 13px; font-size:12.5px; color:var(--ink-dim);
+    box-shadow:0 12px 34px rgba(0,0,0,.5); max-width:260px; transition:opacity .12s;
+    line-height:1.5;
+  }
+  .cost-tip b{ color:var(--ink); display:block; margin-bottom:4px; }
+
+  table.mini{ width:100%; border-collapse:collapse; font-size:.86rem; margin-top:10px; }
+  table.mini th, table.mini td{ text-align:right; padding:6px 12px; border-bottom:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  table.mini th:first-child, table.mini td:first-child{ text-align:left; color:var(--ink-mute); }
+  table.mini thead th{ color:var(--ink-dim); font-weight:600; }
+  table.mini tbody tr:last-child td{ border-bottom:0; color:var(--ink); font-weight:600; }
+
+  .footnote{ font-size:12px; color:var(--ink-mute); }
+  details summary{ cursor:pointer; }
+
+  .rec-primary{ border-color:var(--hetzner); }
+  .badge{ font-family:var(--f-mono); font-size:11px; letter-spacing:.06em; color:var(--ink-mute); }
+
+  /* ---------- rail ---------- */
+  .rail{
+    display:flex; align-items:center; gap:14px;
+    padding:12px var(--pad) 16px;
+    border-top:1px solid var(--line);
+  }
+  .segs{ display:flex; gap:6px; flex:1; }
+  .segs button{
+    flex:1; height:4px; border:0; padding:0; border-radius:2px;
+    background:var(--surface-2); cursor:pointer; transition:background .2s;
+  }
+  .segs button.done{ background:var(--ink-mute); }
+  .segs button.active{ background:var(--accent); }
+  .segs button:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; }
+
+  .nav-btn{
+    background:var(--surface); color:var(--ink-dim);
+    border:1px solid var(--line); border-radius:8px;
+    padding:6px 14px; font-size:13px; cursor:pointer; flex:none;
+    font-family:var(--f-text);
+  }
+  .nav-btn:hover{ color:var(--ink); border-color:var(--accent); }
+  .nav-btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .hint{ font-size:11px; color:var(--ink-mute); }
+  @media (max-width:640px){ .hint{ display:none; } }
+
+  .notes{
+    position:fixed; left:0; right:0; bottom:0; z-index:15;
+    background:var(--surface-2); border-top:2px solid var(--accent);
+    padding:16px var(--pad); font-size:.95rem; color:var(--ink-dim);
+    transform:translateY(101%); transition:transform .25s ease;
+    max-height:40vh; overflow-y:auto;
+  }
+  .notes.show{ transform:none; }
+  .notes .eyebrow{ margin-bottom:8px; }
+  @media (prefers-reduced-motion:reduce){ .notes{ transition:none; } }
+
+  .cover-marks{ display:flex; gap:22px; flex-wrap:wrap; margin-top:8px; }
+  .cover-foot{ display:flex; gap:8px 24px; flex-wrap:wrap; align-items:baseline; font-family:var(--f-mono); font-size:12.5px; color:var(--ink-mute); }
+  .cover-foot b{ color:var(--ink-dim); font-weight:500; }
+</style>
+
+<div class="deck" id="deck">
+
+  <header class="hud">
+    <span><strong>Biblioteca Multicloud</strong> &nbsp;&nbsp; Trabalho 3</span>
+    <span class="counter"><b id="cur">01</b> / 10</span>
+  </header>
+
+  <main class="stage" id="stage">
+
+    <!-- 1 -->
+    <section class="slide" data-notes="Abertura, cerca de 40 segundos. Apresentar a equipe e a ideia central: a mesma aplicacao empacotada uma vez e colocada no ar em tres nuvens diferentes. O objetivo do trabalho e comparar quanto custa e quanto trabalho da cada uma.">
+      <div class="wrap">
+        <p class="eyebrow">Trabalho 3, Cloud Computing e DevOps Avançado</p>
+        <h1>Biblioteca Multicloud</h1>
+        <p class="lede" style="margin-top:18px">A mesma aplicação rodando em três nuvens diferentes, e quanto custa cada uma.</p>
+        <div class="cover-marks">
+          <span class="chip"><span class="dot aws"></span> Amazon (AWS)</span>
+          <span class="chip"><span class="dot azure"></span> Microsoft (Azure)</span>
+          <span class="chip"><span class="dot hetzner"></span> Hetzner</span>
+        </div>
+        <div class="cover-foot" style="margin-top:30px">
+          <span><b>Equipe:</b> Adrian Souza, Fernando Cardoso, Victor Caitano, Renan Oliveira, Guilherme Vitor</span>
+        </div>
+        <p class="hint" style="margin-top:24px">Use as setas do teclado para avançar. A tecla S mostra as anotações.</p>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section class="slide" data-notes="Cerca de 1 minuto. Explicar em palavras simples: pegamos uma aplicacao pronta e colocamos no ar em tres provedores. A regra do trabalho: dois provedores grandes e um menor. A aplicacao guarda dados so na memoria, entao a instalacao e demonstrativa e roda com uma copia so.">
+      <div class="wrap">
+        <p class="eyebrow">O desafio</p>
+        <h2>O que foi pedido</h2>
+        <div class="grid g2" style="margin-top:22px">
+          <div class="panel">
+            <h3>A tarefa</h3>
+            <ul class="ticks" style="margin-top:12px">
+              <li>Pegar uma aplicação pronta e colocá-la no ar em três nuvens diferentes</li>
+              <li>Usar a mesma receita de instalação nas três</li>
+              <li>Comparar preço, facilidade e trabalho de manutenção</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>A aplicação: um sistema de biblioteca</h3>
+            <ul class="ticks" style="margin-top:12px">
+              <li>Feita em Java, com tela de login, cadastro de livros e de autores</li>
+              <li>Guarda os dados apenas na memória: cada reinício zera tudo</li>
+              <li>Por isso a instalação é demonstrativa e roda com uma cópia só</li>
+            </ul>
+          </div>
+        </div>
+        <p class="say" style="margin-top:18px">A regra: escolher dois provedores grandes (aqui, Amazon e Microsoft) e um terceiro menor (aqui, Hetzner).</p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section class="slide" data-notes="Cerca de 1 minuto. A estrategia de empacotamento. Explicar 'imagem' como uma caixa fechada com tudo que a aplicacao precisa. Montamos a caixa uma vez e enviamos igual para as tres nuvens. Em cada nuvem, o Kubernetes liga a aplicacao e publica na internet.">
+      <div class="wrap">
+        <p class="eyebrow">A estratégia</p>
+        <h2>Uma caixa, montada uma vez</h2>
+        <div class="grid g2" style="margin-top:22px">
+          <div class="panel">
+            <h3>Como a aplicação chega ao usuário</h3>
+            <ol class="steps" style="margin-top:14px">
+              <li>Uma pessoa abre um endereço de internet no navegador</li>
+              <li>A nuvem recebe o acesso e encaminha para a aplicação</li>
+              <li>A aplicação responde com as páginas da biblioteca</li>
+            </ol>
+          </div>
+          <div class="panel">
+            <h3>Por que "montar uma vez"</h3>
+            <ul class="ticks" style="margin-top:12px">
+              <li>A aplicação é empacotada numa caixa fechada, com tudo que precisa para funcionar</li>
+              <li>Essa mesma caixa é enviada, sem mudanças, para as três nuvens</li>
+              <li>A caixa roda sem permissões de administrador, por segurança</li>
+            </ul>
+            <p class="muted" style="margin-top:16px; font-size:.95rem">Montar uma vez, usar nos três lugares.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section class="slide" data-notes="Cerca de 50 segundos. As tres partes que descrevemos para o Kubernetes. A senha secreta e a aplicacao sao iguais nas tres nuvens. So a porta de entrada muda de uma para outra.">
+      <div class="wrap">
+        <p class="eyebrow">A configuração</p>
+        <h2>Três partes para o Kubernetes</h2>
+        <div class="grid g3" style="margin-top:22px">
+          <div class="panel">
+            <h3>A senha secreta</h3>
+            <p class="muted" style="margin-top:10px; font-size:.95rem">A aplicação precisa de uma chave para gerar logins. Ela fica guardada num cofre do Kubernetes, nunca junto do código.</p>
+          </div>
+          <div class="panel">
+            <h3>A aplicação</h3>
+            <p class="muted" style="margin-top:10px; font-size:.95rem">Quantas cópias rodar (uma), quanta memória usar e como o Kubernetes verifica, sozinho, se ela está saudável.</p>
+          </div>
+          <div class="panel" style="border-color:var(--accent)">
+            <h3>A porta de entrada <span class="badge">muda por nuvem</span></h3>
+            <p class="muted" style="margin-top:10px; font-size:.95rem">Como a aplicação fica acessível de fora. É a única parte que muda de uma nuvem para outra.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 -->
+    <section class="slide" data-notes="Cerca de 1 minuto e meio. Mostrar o passo a passo em uma nuvem, a Microsoft Azure, escolhida por ser o caminho mais curto. Nao ler comandos, so descrever cada passo. Terminar no endereco de internet e no login funcionando.">
+      <div class="wrap">
+        <p class="eyebrow">Como foi na prática, na Microsoft (Azure)</p>
+        <h2>Passo a passo em uma nuvem</h2>
+        <ol class="steps" style="margin-top:22px">
+          <li>Criar uma área de trabalho na conta da Azure</li>
+          <li>Enviar a caixa da aplicação para o repositório da Azure</li>
+          <li>Pedir para a Azure criar o cluster (o Kubernetes já pronto para usar)</li>
+          <li>Conectar a ferramenta do computador a esse cluster</li>
+          <li>Enviar as três partes da configuração</li>
+          <li>A Azure devolve um endereço de internet. Abrimos, fizemos login, funcionou</li>
+        </ol>
+        <p class="footnote" style="margin-top:18px">Na Amazon o caminho é parecido, só com nomes diferentes. Na Hetzner, nós mesmos instalamos o Kubernetes num servidor.</p>
+      </div>
+    </section>
+
+    <!-- 6 -->
+    <section class="slide" data-notes="Cerca de 1 minuto. Percorrer as linhas da tabela. Destacar o tempo para o cluster ficar pronto (20, 8 e 5 minutos) e a limpeza no final: na Azure e um comando so, na Amazon sao varios passos, na Hetzner e desligar o servidor.">
+      <div class="wrap">
+        <p class="eyebrow">A comparação</p>
+        <h2>O que muda entre as três</h2>
+        <div class="tracks" style="margin-top:20px">
+          <div class="thead">Item</div>
+          <div class="thead aws"><span class="dot aws"></span> Amazon</div>
+          <div class="thead azure"><span class="dot azure"></span> Azure</div>
+          <div class="thead hetzner"><span class="dot hetzner"></span> Hetzner</div>
+
+          <div class="rowhead">O Kubernetes vem pronto?</div>
+          <div class="val yes">Sim</div><div class="val yes">Sim</div><div class="val no">Não, a equipe instala</div>
+
+          <div class="rowhead">Tempo para o cluster ficar pronto</div>
+          <div class="val">cerca de 20 min</div><div class="val">cerca de 8 min</div><div class="val">cerca de 5 min</div>
+
+          <div class="rowhead">Quem cuida da manutenção</div>
+          <div class="val">divide com a Amazon</div><div class="val">divide com a Azure</div><div class="val">a equipe cuida de tudo</div>
+
+          <div class="rowhead">Endereço na internet</div>
+          <div class="val">incluído, pago</div><div class="val">incluído, pago</div><div class="val">usa o próprio servidor, sem custo</div>
+
+          <div class="rowhead">Apagar tudo no final</div>
+          <div class="val">vários passos</div><div class="val">um comando</div><div class="val">desligar e apagar o servidor</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7 -->
+    <section class="slide" data-notes="Cerca de 1 minuto e meio. O ponto alto. Deixar as barras crescerem. Passar o mouse mostra o que compoe o custo. O botao troca a Amazon entre 2 e 1 servidor. Frase-chave: a Hetzner e quase 40 vezes mais barata, e os recursos das nuvens grandes nao ajudam nesta aplicacao.">
+      <div class="wrap">
+        <p class="eyebrow">Custo por mês, estimado, em dólares, com uso o mês inteiro</p>
+        <h2>A diferença de preço é enorme</h2>
+
+        <div class="toggle" role="group" aria-label="Número de servidores da Amazon" style="margin-top:18px">
+          <button id="aws2" aria-pressed="true">Amazon: 2 servidores</button>
+          <button id="aws1" aria-pressed="false">Amazon: 1 servidor</button>
+        </div>
+
+        <div class="chart" id="chart" style="margin-top:16px">
+          <div class="bar-row">
+            <span class="name">Amazon</span>
+            <div class="track-outer"><div class="fill aws" style="width:88.6%" data-cost="155" data-break="Aluguel do Kubernetes 73 / Servidores 60 / Disco 3 / Endereço na internet 18 / Repositório de imagem 0"></div><span class="amount">155 dólares</span></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">Azure</span>
+            <div class="track-outer"><div class="fill azure" style="width:32%" data-cost="56" data-break="Aluguel do Kubernetes 0 (plano gratuito) / Servidores 30 / Disco 3 / Endereço na internet 18 / Repositório de imagem 5"></div><span class="amount">56 dólares</span></div>
+          </div>
+          <div class="bar-row">
+            <span class="name">Hetzner</span>
+            <div class="track-outer"><div class="fill hetzner" style="width:2.3%" data-cost="4.1" data-break="Um servidor pequeno (2 núcleos, 4 GB de memória) / Endereço na internet 0 / Repositório de imagem 0"></div><span class="amount">4 dólares</span></div>
+          </div>
+          <div class="gridlines"><span>0</span><span>50</span><span>100</span><span>150</span><span>175</span></div>
+        </div>
+
+        <div class="headline-stat">
+          <span class="big" id="multi">38 vezes</span>
+          <span class="lede" style="margin:0">mais caro na Amazon do que na Hetzner, no mesmo cenário.</span>
+        </div>
+
+        <details style="margin-top:16px">
+          <summary class="footnote">ver os itens do custo</summary>
+          <table class="mini">
+            <thead><tr><th>Item</th><th>Amazon</th><th>Azure</th><th>Hetzner</th></tr></thead>
+            <tbody>
+              <tr><td>Aluguel do Kubernetes</td><td>73</td><td>0</td><td>0</td></tr>
+              <tr><td>Servidores</td><td>60</td><td>30</td><td>incluído</td></tr>
+              <tr><td>Disco</td><td>3</td><td>3</td><td>incluído</td></tr>
+              <tr><td>Endereço na internet</td><td>18</td><td>18</td><td>0</td></tr>
+              <tr><td>Repositório de imagem</td><td>0</td><td>5</td><td>0</td></tr>
+              <tr><td>Total por mês</td><td>cerca de 155</td><td>cerca de 56</td><td>cerca de 4</td></tr>
+            </tbody>
+          </table>
+        </details>
+
+        <p class="footnote" style="margin-top:14px">Regiões usadas: Amazon nos EUA, Azure nos EUA, Hetzner na Alemanha. Valores de exemplo, para conferir no dia da entrega.</p>
+      </div>
+    </section>
+
+    <!-- 8 -->
+    <section class="slide" data-notes="Cerca de 1 minuto. Pros e contras. Ideia central: nuvem grande da menos trabalho de manutencao, mas cobra mais itens. Servidor proprio da controle total, mas toda a responsabilidade fica com a equipe.">
+      <div class="wrap">
+        <p class="eyebrow">Prós e contras</p>
+        <h2>Vantagens e desvantagens</h2>
+        <div class="tracks" style="margin-top:20px">
+          <div class="thead">Item</div>
+          <div class="thead aws"><span class="dot aws"></span> Amazon</div>
+          <div class="thead azure"><span class="dot azure"></span> Azure</div>
+          <div class="thead hetzner"><span class="dot hetzner"></span> Hetzner</div>
+
+          <div class="rowhead">Facilidade de instalar</div>
+          <div class="val">média, leva tempo</div><div class="val yes">alta, quase tudo automático</div><div class="val">média, mais trabalho manual</div>
+
+          <div class="rowhead">Custo</div>
+          <div class="val">alto</div><div class="val">médio</div><div class="val yes">muito baixo</div>
+
+          <div class="rowhead">Cresce fácil se precisar?</div>
+          <div class="val">sim</div><div class="val">sim</div><div class="val">limitado</div>
+
+          <div class="rowhead">Ferramentas de monitoramento</div>
+          <div class="val">sim, pagas à parte</div><div class="val">sim, pagas à parte</div><div class="val">instalar por conta própria</div>
+
+          <div class="rowhead">Melhor para</div>
+          <div class="val">empresa que já usa Amazon</div><div class="val">melhor custo-benefício pronto</div><div class="val">estudo e projetos pequenos</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9 -->
+    <section class="slide" data-notes="Cerca de 1 minuto. A recomendacao. Para este trabalho: Hetzner, pelos tres motivos. Se fosse um sistema de verdade em producao: Azure. Amazon so se a empresa ja vive dentro da Amazon.">
+      <div class="wrap">
+        <p class="eyebrow">Recomendação</p>
+        <h2>Nossa escolha: <span style="color:var(--hetzner)">Hetzner</span></h2>
+        <div class="panel rec-primary" style="margin-top:20px">
+          <ul class="ticks">
+            <li>Custa cerca de 38 vezes menos que a Amazon, no mesmo cenário</li>
+            <li>O servidor mais simples já dá conta desta aplicação com folga</li>
+            <li>Os recursos avançados das nuvens grandes não ajudam aqui: a aplicação roda com uma cópia só e não guarda dados</li>
+          </ul>
+        </div>
+        <div class="grid g2" style="margin-top:16px">
+          <div class="panel">
+            <h3>Se fosse um sistema de verdade: <span style="color:var(--azure)">Azure</span></h3>
+            <p class="muted" style="margin-top:8px; font-size:.95rem">Melhor equilíbrio entre custo e facilidade, com o Kubernetes já pronto e a limpeza em um comando.</p>
+          </div>
+          <div class="panel">
+            <h3><span style="color:var(--aws)">Amazon</span></h3>
+            <p class="muted" style="margin-top:8px; font-size:.95rem">Vale a pena quando a empresa já usa a Amazon para tudo, mesmo custando mais.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section class="slide" data-notes="Cerca de 40 segundos. Fechar mostrando o que foi entregue. Reforcar que todos os recursos foram apagados no final, para nao gerar cobranca. Abrir para perguntas.">
+      <div class="wrap">
+        <p class="eyebrow">Entregue</p>
+        <h2>Obrigado. Perguntas?</h2>
+        <div class="grid g2" style="margin-top:22px">
+          <ul class="ticks ok">
+            <li>Receita de empacotamento da aplicação</li>
+            <li>Arquivos de configuração do Kubernetes</li>
+            <li>Passo a passo das três nuvens</li>
+            <li>Provas de que funcionou em cada uma</li>
+          </ul>
+          <ul class="ticks ok">
+            <li>Comparação de custo, em tabela e em gráfico</li>
+            <li>Vantagens, desvantagens e recomendação</li>
+            <li>Todos os recursos foram apagados no final</li>
+          </ul>
+        </div>
+        <div class="cover-foot" style="margin-top:28px">
+          <span><b>Equipe:</b> Adrian Souza, Fernando Cardoso, Victor Caitano, Renan Oliveira, Guilherme Vitor</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="rail" aria-label="Navegação dos slides">
+    <button class="nav-btn" id="prev" aria-label="Slide anterior">Voltar</button>
+    <div class="segs" id="segs"></div>
+    <button class="nav-btn" id="next" aria-label="Próximo slide">Avançar</button>
+    <span class="hint">setas do teclado, ou S para as anotações</span>
+  </nav>
+
+  <aside class="notes" id="notes" aria-live="polite">
+    <p class="eyebrow" id="notesLabel">Anotações do apresentador</p>
+    <p id="notesBody"></p>
+  </aside>
+
+  <div class="cost-tip" id="costTip"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var total = slides.length;
+  var i = 0;
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var curEl = document.getElementById("cur");
+  var segsEl = document.getElementById("segs");
+  var notesEl = document.getElementById("notes");
+  var notesBody = document.getElementById("notesBody");
+  var notesLabel = document.getElementById("notesLabel");
+  var chartDrawn = false;
+
+  slides.forEach(function(s, idx){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-label", "Ir para o slide " + (idx + 1));
+    b.addEventListener("click", function(){ go(idx); });
+    segsEl.appendChild(b);
+  });
+  var segBtns = Array.prototype.slice.call(segsEl.children);
+
+  function pad(n){ return (n < 10 ? "0" : "") + n; }
+
+  function drawChart(){
+    if (chartDrawn) return;
+    chartDrawn = true;
+    if (reduced) return; // barras já estão no tamanho final pelo style inline
+    var scale = 175;
+    document.querySelectorAll("#chart .fill").forEach(function(f){
+      var pct = Math.max(1.5, (parseFloat(f.getAttribute("data-cost")) / scale) * 100);
+      f.style.transition = "none";
+      f.style.width = "0%";
+      void f.offsetWidth;
+      f.style.transition = "";
+      requestAnimationFrame(function(){ f.style.width = pct.toFixed(2) + "%"; });
+    });
+  }
+
+  function go(n){
+    n = Math.max(0, Math.min(total - 1, n));
+    var prevSlide = slides[i];
+    i = n;
+    slides.forEach(function(s, idx){
+      if (idx === i){
+        s.hidden = false;
+        if (!reduced && s !== prevSlide){ s.classList.remove("enter"); void s.offsetWidth; s.classList.add("enter"); }
+      } else {
+        s.hidden = true;
+      }
+    });
+    curEl.textContent = pad(i + 1);
+    segBtns.forEach(function(b, idx){
+      b.classList.toggle("active", idx === i);
+      b.classList.toggle("done", idx < i);
+    });
+    notesBody.textContent = slides[i].getAttribute("data-notes") || "";
+    notesLabel.textContent = "Anotações do apresentador, slide " + pad(i + 1) + " de " + pad(total);
+    if (slides[i].querySelector("#chart")) { setTimeout(drawChart, reduced ? 0 : 260); }
+  }
+
+  document.getElementById("prev").addEventListener("click", function(){ go(i - 1); });
+  document.getElementById("next").addEventListener("click", function(){ go(i + 1); });
+
+  document.addEventListener("keydown", function(e){
+    switch(e.key){
+      case "ArrowRight": case "PageDown": case " ": e.preventDefault(); go(i + 1); break;
+      case "ArrowLeft": case "PageUp": e.preventDefault(); go(i - 1); break;
+      case "Home": e.preventDefault(); go(0); break;
+      case "End": e.preventDefault(); go(total - 1); break;
+      case "s": case "S": notesEl.classList.toggle("show"); break;
+      default:
+        if (/^[1-9]$/.test(e.key)) { go(parseInt(e.key, 10) - 1); }
+        else if (e.key === "0") { go(9); }
+    }
+  });
+
+  var aws2 = document.getElementById("aws2");
+  var aws1 = document.getElementById("aws1");
+  var awsFill = document.querySelector("#chart .fill.aws");
+  var awsAmount = awsFill ? awsFill.parentNode.querySelector(".amount") : null;
+  var multi = document.getElementById("multi");
+  function setAws(two){
+    aws2.setAttribute("aria-pressed", two ? "true" : "false");
+    aws1.setAttribute("aria-pressed", two ? "false" : "true");
+    var cost = two ? 155 : 124;
+    awsFill.setAttribute("data-cost", cost);
+    awsFill.setAttribute("data-break", (two ? "2 servidores" : "1 servidor") + " / Aluguel do Kubernetes 73 / Servidores " + (two ? "60" : "30") + " / Endereço na internet 18");
+    awsFill.style.width = Math.max(1.5, (cost / 175) * 100).toFixed(2) + "%";
+    awsAmount.textContent = cost + " dólares";
+    multi.textContent = Math.round(cost / 4.1) + " vezes";
+  }
+  if (aws2){ aws2.addEventListener("click", function(){ setAws(true); }); aws1.addEventListener("click", function(){ setAws(false); }); }
+
+  var tip = document.getElementById("costTip");
+  function showTip(target, x, y){
+    var fill = target.querySelector(".fill");
+    if (!fill) return;
+    var name = target.parentNode.querySelector(".name").textContent;
+    var lines = fill.getAttribute("data-break").split(" / ").map(function(p){ return "<div>" + p + "</div>"; }).join("");
+    tip.innerHTML = "<b>" + name + ", cerca de " + fill.getAttribute("data-cost") + " dólares por mês</b>" + lines;
+    tip.style.opacity = "1";
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    tip.style.left = Math.min(window.innerWidth - w - 12, x + 14) + "px";
+    tip.style.top = Math.max(12, y - h - 12) + "px";
+  }
+  function hideTip(){ tip.style.opacity = "0"; }
+  document.querySelectorAll(".track-outer").forEach(function(row){
+    row.setAttribute("tabindex", "0");
+    row.addEventListener("mousemove", function(e){ showTip(row, e.clientX, e.clientY); });
+    row.addEventListener("mouseleave", hideTip);
+    row.addEventListener("focus", function(){ var r = row.getBoundingClientRect(); showTip(row, r.right - 40, r.top + 60); });
+    row.addEventListener("blur", hideTip);
+  });
+
+  go(0);
+})();
+</script>

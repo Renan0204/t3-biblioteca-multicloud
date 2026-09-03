@@ -1,0 +1,45 @@
+# OPCIONAL - exposicao por Ingress na VPS com K3s.
+# O K3s ja instala o Traefik como Ingress Controller e o ServiceLB (Klipper).
+# Requisitos: um nome DNS (ex.: biblioteca.seudominio.com) apontando para o IP
+# publico da VPS e as portas 80/443 liberadas no firewall.
+#
+# HTTPS automatico com Let's Encrypt exige cert-manager instalado e um
+# ClusterIssuer configurado. Sem cert-manager, o acesso e apenas HTTP.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: biblioteca-clusterip
+  labels:
+    app: biblioteca
+spec:
+  type: ClusterIP
+  selector:
+    app: biblioteca
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: biblioteca
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"   # descomente com cert-manager
+spec:
+  rules:
+    - host: SEU_DOMINIO_OU_SUBDOMINIO
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: biblioteca-clusterip
+                port:
+                  number: 80
+  # tls:
+  #   - hosts: [SEU_DOMINIO_OU_SUBDOMINIO]
+  #     secretName: biblioteca-tls

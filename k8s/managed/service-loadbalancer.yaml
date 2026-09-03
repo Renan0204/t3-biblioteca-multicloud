@@ -1,0 +1,17 @@
+# Exposicao em nuvem gerenciada (AWS EKS e Azure AKS).
+# type: LoadBalancer faz o provedor provisionar um balanceador com IP/DNS
+# publico - e um recurso COBRADO (Aula 06, slide 27).
+apiVersion: v1
+kind: Service
+metadata:
+  name: biblioteca
+  labels:
+    app: biblioteca
+spec:
+  type: LoadBalancer
+  selector:
+    app: biblioteca
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

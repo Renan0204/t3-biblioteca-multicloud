@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: biblioteca
+  labels:
+    app: biblioteca
+spec:
+  # H2 em memoria (jdbc:h2:mem:banco): os dados vivem no processo. Use SOMENTE
+  # 1 replica - varias replicas teriam bancos diferentes (Aula 06, slide 11).
+  replicas: 1
+  selector:
+    matchLabels:
+      app: biblioteca
+  template:
+    metadata:
+      labels:
+        app: biblioteca
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: biblioteca
+          # >>> TROQUE pela imagem que voce publicou. <<<
+          # Exemplo com Docker Hub publico (mesma imagem nos 3 ambientes - slide 12):
+          image: docker.io/SEU_USUARIO_DOCKERHUB/biblioteca:1.0
+          # Se usar o registro do provedor, troque a linha acima por:
+          #   AWS ECR : <ACCOUNT_ID>.dkr.ecr.<REGIAO>.amazonaws.com/biblioteca:1.0
+          #   Azure   : <NOME_UNICO>.azurecr.io/biblioteca:1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: API_SECURITY_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: biblioteca-secret
+                  key: jwt-secret
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "384Mi"
+            limits:
+              cpu: "1"
+              memory: "768Mi"   # se o Pod for OOMKilled no boot, suba para 1Gi
+          # startupProbe protege a inicializacao lenta do Spring Boot: da ate
+          # 30 x 5s = 150s antes de liveness/readiness entrarem em acao.
+          startupProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: 8080
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            # readOnlyRootFilesystem: true  # opcional; se o Pod nao subir, remova

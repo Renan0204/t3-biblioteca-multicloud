@@ -1,0 +1,4 @@
+# Mantém finais de linha LF no repositório (Dockerfile, YAML e comandos shell)
+* text=auto eol=lf
+*.pdf binary
+*.png binary
