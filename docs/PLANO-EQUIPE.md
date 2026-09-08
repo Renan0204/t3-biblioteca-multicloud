@@ -1,12 +1,11 @@
-# Plano da equipe — o que falta para entregar o T3
+# O que falta para entregar o T3
 
-## Já está pronto (no GitHub)
+## Já está pronto (no repositório)
 
 - Documento completo: [`TUTORIAL.md`](../TUTORIAL.md)
 - `Dockerfile`, `.dockerignore`, manifestos Kubernetes em [`k8s/`](../k8s/)
 - Apresentação de 10 slides: `apresentacao.html`
 - Roteiro de execução com os comandos: [`docs/EXECUCAO.md`](./EXECUCAO.md)
-- Repositório: https://github.com/Renan0204/t3-biblioteca-multicloud
 
 ## Falta fazer
 
@@ -16,32 +15,36 @@
 4. Consultar os preços no dia da entrega.
 5. Montar o PDF final com as evidências e enviar o e-mail ao professor.
 
-## Divisão de tarefas
+## Tarefas
 
-Quem mexer em nuvem precisa de: conta no provedor + cartão de crédito + a CLI dele.
-Custo total ~US$ 1 a 3 **se apagar tudo logo depois**.
+Cada tarefa de nuvem precisa de: conta no provedor + cartão de crédito + a CLI dele.
+Custo total ~US$ 1 a 3 **se apagar tudo logo depois**. Os comandos de cada fase estão
+no [`EXECUCAO.md`](./EXECUCAO.md).
 
-| Pessoa | Responsável por |
-|---|---|
-| Renan Oliveira | Docker local, publicar imagem, fechamento (PDF + e-mail) |
-| Adrian Souza | AWS (Amazon EKS) — Fase 3 |
-| Fernando Cardoso | Azure (AKS) — Fase 2 |
-| Victor Caitano | Hetzner (servidor + K3s) — Fase 1 |
-| Guilherme Vitor | Comparação de custos (preços do dia) + conferência dos prints |
+- **Docker local e imagem (Fase 0):** fazer o build, testar em `http://localhost:8080/login`,
+  publicar a imagem no Docker Hub e divulgar o nome dela (`docker.io/USUARIO/biblioteca:1.0`)
+  para as demais tarefas. Salvar os prints `local-01` a `local-05`.
+- **Hetzner, VPS + K3s (Fase 1):** a mais rápida e barata. Prints `hetzner-01` a `hetzner-05`.
+- **Azure, AKS (Fase 2):** conta nova tem US$ 200 de crédito. Prints `azure-01` a `azure-06`.
+- **AWS, Amazon EKS (Fase 3):** a mais demorada (~50 min) e a única que custa (~US$ 1).
+  Prints `aws-01` a `aws-06`.
+- **Apagar tudo (Fase 4):** cada ambiente apaga o que criou; conferir o painel de
+  cobrança. Prints `*-07-limpeza`.
+- **Comparação de custos:** no dia da entrega, consultar as páginas de preço da AWS,
+  Azure e Hetzner e anotar valor do cluster, dos servidores, do balanceador e a data.
+  Conferir se todos os prints estão em `docs/evidencias/` com os nomes certos e sem
+  dados sensíveis à mostra.
+- **Fechamento:** juntar as evidências, subir no Git, gerar o PDF final e enviar o e-mail.
 
 ## Ordem
 
-1. **Renan** faz a Fase 0 (build + teste local + publica a imagem no Docker Hub) e
-   avisa no grupo o nome da imagem (`docker.io/USUARIO/biblioteca:1.0`).
-2. **Victor, Fernando e Adrian** rodam as Fases 1, 2 e 3 **em paralelo**, cada um na
-   sua nuvem, usando o nome da imagem que o Renan passou. Salvam os prints em
-   `docs/evidencias/` com os nomes indicados no `EXECUCAO.md`.
-3. **Todos** rodam a Fase 4 (apagar tudo) e conferem o painel de cobrança.
-4. **Guilherme** consulta os preços dos 3 provedores no dia, manda os números no
-   grupo, e confere se todos os prints estão na pasta, com os nomes certos e sem
-   dados sensíveis à mostra.
-5. **Renan** sobe tudo (`git add -A && git commit -m "..." && git push`), avisa, gera
-   o PDF final e envia o e-mail.
+1. Fazer a **Fase 0** primeiro e divulgar o nome da imagem publicada.
+2. **Fases 1, 2 e 3 em paralelo**, cada uma na sua nuvem, usando essa imagem.
+   Salvar os prints em `docs/evidencias/` com os nomes do `EXECUCAO.md`.
+3. **Fase 4** em todos os ambientes; conferir a cobrança.
+4. Consultar os **preços do dia** e conferir os prints.
+5. Subir tudo no Git (`git add -A && git commit -m "..." && git push`), gerar o
+   **PDF final** e enviar o **e-mail** ao professor.
 
 ## Regras que não podem falhar
 
@@ -52,12 +55,12 @@ Custo total ~US$ 1 a 3 **se apagar tudo logo depois**.
 - A aplicação roda com **1 réplica** (banco em memória) — é de propósito.
 - Prazo: até o fim da aula.
 
-## E-mail final (Renan envia)
+## E-mail final
 
 - **Para:** diogo.p.ranghetti@gmail.com
-- **Cc:** e-mails de todos os 5 integrantes
+- **Cc:** e-mails de todos os integrantes
 - **Assunto:** `[Cloud DevOps] T3 – Biblioteca em Kubernetes`
 - **Anexo:** o PDF
-- **Corpo:** lista dos 5 integrantes + link do repositório + observação de que os
-  recursos foram removidos. Modelo pronto no final do `TUTORIAL.md` (seção 17.2) e no
-  histórico da conversa.
+- **Corpo:** lista dos integrantes + link do repositório + observação de que os
+  recursos foram removidos. Modelo no final do `TUTORIAL.md` (seção 17.2).
+- Um integrante envia, com os demais em cópia.

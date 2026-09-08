@@ -9,7 +9,7 @@ tudo. As explicações completas estão no [`TUTORIAL.md`](../TUTORIAL.md).
 - Cada `SALVAR PRINT:` indica um arquivo para colocar em `docs/evidencias/`.
 
 Placeholders a substituir: `DOCKERHUB_USER`, `ACR_NOME` (só letras/números minúsculos,
-único no mundo), `IP_DA_VPS`, `ACCOUNT_ID`.
+único no mundo), `IP_DA_VPS`, `ACCOUNT_ID`, `URL_DO_REPOSITORIO_DA_EQUIPE`.
 
 ---
 
@@ -23,8 +23,8 @@ cd biblioteca
 git log -1 --format="%H %ci"
 
 # copiar os arquivos deste repo para dentro da pasta biblioteca:
-copy ..\t3-biblioteca-multicloud\Dockerfile .
-copy ..\t3-biblioteca-multicloud\.dockerignore .
+copy <pasta-deste-repo>\Dockerfile .
+copy <pasta-deste-repo>\.dockerignore .
 
 docker build -t biblioteca:1.0 .
 docker image ls biblioteca
@@ -76,8 +76,8 @@ k3s kubectl get nodes
 `SALVAR PRINT: hetzner-02-nodes.png`
 
 ```bash
-git clone https://github.com/Renan0204/t3-biblioteca-multicloud.git
-cd t3-biblioteca-multicloud
+git clone URL_DO_REPOSITORIO_DA_EQUIPE
+cd NOME_DO_REPOSITORIO
 # conferir que k8s/base/deployment.yaml já tem a imagem do Docker Hub
 
 k3s kubectl create secret generic biblioteca-secret --from-literal=jwt-secret="$(openssl rand -base64 32)"
@@ -231,12 +231,11 @@ Opcional: manter a imagem pública (não gera custo) ou apagar o repositório.
 
 1. Colocar todos os PNG em `docs/evidencias/` com os nomes acima.
 2. Ocultar nos prints: tokens, chaves, Account/Subscription ID, dados de cobrança.
-3. Avisar aqui — eu insiro as evidências na seção 11 do `TUTORIAL.md`, anoto os
-   problemas encontrados (Slide 56), preencho os preços do dia na seção 12.1 e
-   regenero o PDF.
+3. Inserir as evidências na seção 11 do `TUTORIAL.md`, anotar os problemas
+   encontrados (Slide 56), preencher os preços do dia na seção 12.1 e regenerar o PDF.
 4. Subir:
    ```bash
-   cd "c:/Users/user/Documents/RenanNote/T3_cloud/biblioteca-multicloud"
+   cd <pasta-local-do-repositorio>
    git add -A
    git commit -m "Adiciona evidencias de execucao e precos do dia"
    git push

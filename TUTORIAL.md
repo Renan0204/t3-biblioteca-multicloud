@@ -4,7 +4,7 @@
 
 **Professor:** Diogo P. Ranghetti
 
-**Equipe:** Adrian Souza · Fernando Cardoso · Victor Caitano · Renan Oliveira · Guilherme Vitor
+**Equipe:** _(preencher com os nomes dos integrantes antes de entregar)_
 
 **Aplicação:** https://github.com/dpRanghetti/biblioteca
 
@@ -43,9 +43,9 @@
 
 | Campo | Valor |
 |---|---|
-| Integrantes | Adrian Souza · Fernando Cardoso · Victor Caitano · Renan Oliveira · Guilherme Vitor |
-| Data da elaboração | 02/09/2026 |
-| Repositório da equipe | https://github.com/Renan0204/t3-biblioteca-multicloud |
+| Integrantes | _(preencher com todos os integrantes — obrigatório, Slide 46)_ |
+| Data da elaboração | _(preencher)_ |
+| Repositório da equipe | _(link do repositório da equipe, com acesso liberado ao professor)_ |
 | Versão da aplicação utilizada | `dpRanghetti/biblioteca`, branch `master`, commit `5a40964` (2026-06-05) — confirmar no clone da equipe |
 
 ---
@@ -575,8 +575,8 @@ Opção A — clonar este repositório no servidor:
 
 ```bash
 ssh root@IP_DA_VPS
-git clone https://github.com/Renan0204/t3-biblioteca-multicloud.git
-cd t3-biblioteca-multicloud
+git clone URL_DO_REPOSITORIO_DA_EQUIPE
+cd NOME_DO_REPOSITORIO
 ```
 
 Opção B — copiar apenas a pasta `k8s/` da sua máquina:
