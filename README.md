@@ -49,3 +49,7 @@ biblioteca-multicloud/
 - O segredo JWT (`API_SECURITY_TOKEN_SECRET`) é sempre fornecido por `Secret` —
   **nunca** versione o valor real.
 - Apague todos os recursos de nuvem após coletar as evidências.
+
+---
+
+Preparado por **Renan Oliveira**.

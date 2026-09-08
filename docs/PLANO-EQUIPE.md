@@ -6,6 +6,9 @@
 - `Dockerfile`, `.dockerignore`, manifestos Kubernetes em [`k8s/`](../k8s/)
 - Apresentação de 10 slides: `apresentacao.html`
 - Roteiro de execução com os comandos: [`docs/EXECUCAO.md`](./EXECUCAO.md)
+- Repositório: https://github.com/Renan0204/t3-biblioteca-multicloud
+
+Tudo acima foi produzido por **Renan Oliveira**.
 
 ## Falta fazer
 
@@ -34,7 +37,8 @@ no [`EXECUCAO.md`](./EXECUCAO.md).
   Azure e Hetzner e anotar valor do cluster, dos servidores, do balanceador e a data.
   Conferir se todos os prints estão em `docs/evidencias/` com os nomes certos e sem
   dados sensíveis à mostra.
-- **Fechamento:** juntar as evidências, subir no Git, gerar o PDF final e enviar o e-mail.
+- **Fechamento (Renan Oliveira):** juntar as evidências, subir no Git, gerar o PDF
+  final e enviar o e-mail.
 
 ## Ordem
 
@@ -44,7 +48,7 @@ no [`EXECUCAO.md`](./EXECUCAO.md).
 3. **Fase 4** em todos os ambientes; conferir a cobrança.
 4. Consultar os **preços do dia** e conferir os prints.
 5. Subir tudo no Git (`git add -A && git commit -m "..." && git push`), gerar o
-   **PDF final** e enviar o **e-mail** ao professor.
+   **PDF final** e enviar o **e-mail** ao professor — **fechamento por Renan Oliveira**.
 
 ## Regras que não podem falhar
 
@@ -63,4 +67,4 @@ no [`EXECUCAO.md`](./EXECUCAO.md).
 - **Anexo:** o PDF
 - **Corpo:** lista dos integrantes + link do repositório + observação de que os
   recursos foram removidos. Modelo no final do `TUTORIAL.md` (seção 17.2).
-- Um integrante envia, com os demais em cópia.
+- **Renan Oliveira** envia, com os demais integrantes em cópia.

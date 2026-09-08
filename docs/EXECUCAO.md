@@ -9,7 +9,7 @@ tudo. As explicações completas estão no [`TUTORIAL.md`](../TUTORIAL.md).
 - Cada `SALVAR PRINT:` indica um arquivo para colocar em `docs/evidencias/`.
 
 Placeholders a substituir: `DOCKERHUB_USER`, `ACR_NOME` (só letras/números minúsculos,
-único no mundo), `IP_DA_VPS`, `ACCOUNT_ID`, `URL_DO_REPOSITORIO_DA_EQUIPE`.
+único no mundo), `IP_DA_VPS`, `ACCOUNT_ID`.
 
 ---
 
@@ -76,8 +76,8 @@ k3s kubectl get nodes
 `SALVAR PRINT: hetzner-02-nodes.png`
 
 ```bash
-git clone URL_DO_REPOSITORIO_DA_EQUIPE
-cd NOME_DO_REPOSITORIO
+git clone https://github.com/Renan0204/t3-biblioteca-multicloud.git
+cd t3-biblioteca-multicloud
 # conferir que k8s/base/deployment.yaml já tem a imagem do Docker Hub
 
 k3s kubectl create secret generic biblioteca-secret --from-literal=jwt-secret="$(openssl rand -base64 32)"
