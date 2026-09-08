@@ -61,6 +61,7 @@ no [`EXECUCAO.md`](./EXECUCAO.md).
 
 ## E-mail final
 
+- Renan Oliveira envia:
 - **Para:** diogo.p.ranghetti@gmail.com
 - **Cc:** e-mails de todos os integrantes
 - **Assunto:** `[Cloud DevOps] T3 – Biblioteca em Kubernetes`
