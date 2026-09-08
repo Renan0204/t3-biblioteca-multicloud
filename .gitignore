@@ -15,3 +15,6 @@ azure.json
 # Build
 target/
 *.jar
+
+# PDF gerado a partir do TUTORIAL.md (vai como anexo do e-mail, nao versionado)
+T3-Biblioteca-Multicloud.pdf
