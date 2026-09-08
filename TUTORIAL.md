@@ -44,7 +44,7 @@
 | Campo | Valor |
 |---|---|
 | Integrantes | Renan Oliveira |
-| Data da elaboração | _(preencher)_ |
+| Data da elaboração | 02/09/2026 |
 | Repositório da equipe | https://github.com/Renan0204/t3-biblioteca-multicloud |
 | Versão da aplicação utilizada | `dpRanghetti/biblioteca`, branch `master`, commit `5a40964` (2026-06-05) — confirmar no clone da equipe |
 
