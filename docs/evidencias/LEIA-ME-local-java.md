@@ -1,29 +1,26 @@
-# Capturas reais da execução local com Java
+# Evidências de testes locais
 
-Capturas obtidas em 09/09/2026 durante a execução da aplicação Biblioteca diretamente com Java 21.0.11 e Spring Boot 4.0.6, em `http://localhost:8080`.
-
-Esta execução não utilizou Docker nem provedores de nuvem. As imagens abaixo documentam somente o teste local via Java; não demonstram execução em contêiner, publicação de imagem ou implantação multicloud.
+Teste realizado em **09/09/2026**, com **Java 21.0.11** e **Spring Boot 4.0.6**, em `http://localhost:8080`. Execução local via Java, sem Docker.
 
 ## Login
 
-Login realizado com a conta de demonstração da aplicação. A tela autenticada exibe a navegação e a opção de sair.
+Login realizado com o usuário de demonstração.
 
-![Tela após login na aplicação local via Java](local-02-login.png)
+![Login na aplicação — Java local](local-02-login.png)
 
-## Operação de escrita
+## Cadastro de autor
 
-O autor de demonstração **Machado de Assis**, com nacionalidade **Brasileira**, foi cadastrado pelo formulário. A listagem confirmou o registro com ID 1.
+Cadastro de **Machado de Assis**, nacionalidade **Brasileira**, confirmado na listagem com ID **1**.
 
-![Autor cadastrado pela interface da aplicação local via Java](local-03-operacao.png)
+![Cadastro de autor — Java local](local-03-operacao.png)
 
-## Verificação
+## Resultado dos testes
 
-- Projeto utilizado: cópia local da Biblioteca na pasta `Java_`, incluindo as alterações locais que já existiam nessa cópia.
-- Compilação: `mvnw.cmd -B package`, concluída com sucesso.
-- Testes existentes: 1 executado, sem falhas nem erros.
-- Execução: JAR gerado pelo Maven, com endereço de escuta restrito a `127.0.0.1` e porta `8080`.
-- Segredo JWT fornecido por variável de ambiente durante a inicialização, sem registro do valor nas evidências.
-- Banco H2 em memória: o cadastro de demonstração se perde quando a aplicação é encerrada.
-- Imagens capturadas diretamente do navegador, sem edição do conteúdo.
+- Compilação: `mvnw.cmd -B package` — concluída com sucesso.
+- Teste automatizado: **1 executado, 0 falhas e 0 erros**.
+- Testes no navegador: login e cadastro de autor concluídos.
+- Projeto: cópia local da Biblioteca (`Java_`), com as alterações locais existentes.
+- Execução: JAR do Maven em `127.0.0.1:8080`, com segredo JWT fornecido por variável de ambiente.
+- Banco H2 em memória: os dados são descartados ao encerrar a aplicação.
 
-As demais imagens da pasta não foram revalidadas por esta execução local.
+As duas capturas documentam o teste local via Java. A validação dos ambientes de nuvem é uma etapa separada.

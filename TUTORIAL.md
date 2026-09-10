@@ -630,6 +630,8 @@ k3s kubectl logs deployment/biblioteca --tail=50
 
 ## 11. Evidências e testes
 
+Os arquivos disponíveis estão reunidos no [índice de evidências com legendas](./docs/evidencias/README.md), organizado por ambiente. As capturas de login e cadastro local foram obtidas com Java, sem Docker.
+
 Capturar, **para cada um dos três ambientes** (slide 38), ocultando tokens, chaves,
 Account/Subscription IDs e dados de cobrança:
 
