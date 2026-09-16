@@ -16,5 +16,6 @@ azure.json
 target/
 *.jar
 
-# PDF gerado a partir do TUTORIAL.md (vai como anexo do e-mail, nao versionado)
+# PDFs gerados (vao como anexo do e-mail, nao versionados)
 T3-Biblioteca-Multicloud.pdf
+T3-Apresentacao.pdf
