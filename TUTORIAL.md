@@ -4,7 +4,7 @@
 
 **Professor:** Diogo P. Ranghetti
 
-**Equipe:** Renan Oliveira
+**Equipe:** Adrian Souza · Fernando Cardoso · Guilherme Vitor · Renan Oliveira · Victor Caitano
 
 **Aplicação:** https://github.com/dpRanghetti/biblioteca
 
@@ -43,7 +43,7 @@
 
 | Campo | Valor |
 |---|---|
-| Integrantes | Renan Oliveira |
+| Integrantes | Adrian Souza · Fernando Cardoso · Guilherme Vitor · Renan Oliveira · Victor Caitano |
 | Data da elaboração | 02/09/2026 |
 | Repositório da equipe | https://github.com/Renan0204/t3-biblioteca-multicloud |
 | Versão da aplicação utilizada | `dpRanghetti/biblioteca`, branch `master`, commit `5a40964` (2026-06-05) — confirmar no clone da equipe |
