@@ -8,10 +8,12 @@
 
 **Aplicação:** https://github.com/dpRanghetti/biblioteca
 
-**Ambientes escolhidos:** Amazon Web Services (EKS) · Microsoft Azure (AKS) · Hetzner Cloud (VPS + K3s)
+**Ambientes escolhidos:** Amazon Web Services (EKS), Microsoft Azure (AKS) e Hetzner Cloud (servidor com K3s)
 
-> Tutorial reproduzível: containerização com Docker, implantação em Kubernetes nos
-> três ambientes, comparação de custos e recomendação final.
+> Este documento explica, em linguagem direta, como colocar a aplicação Biblioteca
+> no ar em três nuvens diferentes, quanto isso custa em cada uma e qual opção a
+> equipe recomenda. Cada parte começa explicando o que está sendo feito e por quê;
+> os comandos aparecem depois, acompanhados de uma explicação.
 
 ---
 
@@ -19,20 +21,20 @@
 
 1. [Capa e integrantes](#1-capa-e-integrantes)
 2. [Objetivo e escopo](#2-objetivo-e-escopo)
-3. [Análise da aplicação Biblioteca](#3-análise-da-aplicação-biblioteca)
-4. [Pré-requisitos](#4-pré-requisitos)
-5. [Containerização com Docker](#5-containerização-com-docker)
-6. [Manifestos Kubernetes](#6-manifestos-kubernetes)
-7. [Comandos comuns aos três ambientes](#7-comandos-comuns-aos-três-ambientes)
-8. [Provedor 1 — AWS (Amazon EKS)](#8-provedor-1--aws-amazon-eks)
-9. [Provedor 2 — Microsoft Azure (AKS)](#9-provedor-2--microsoft-azure-aks)
-10. [Provedor 3 — Hetzner Cloud (VPS + K3s)](#10-provedor-3--hetzner-cloud-vps--k3s)
+3. [A aplicação Biblioteca](#3-a-aplicação-biblioteca)
+4. [O que é preciso antes de começar](#4-o-que-é-preciso-antes-de-começar)
+5. [Empacotando a aplicação com Docker](#5-empacotando-a-aplicação-com-docker)
+6. [Os arquivos de configuração do Kubernetes](#6-os-arquivos-de-configuração-do-kubernetes)
+7. [O caminho comum às três nuvens](#7-o-caminho-comum-às-três-nuvens)
+8. [Provedor 1, AWS (Amazon EKS)](#8-provedor-1-aws-amazon-eks)
+9. [Provedor 2, Microsoft Azure (AKS)](#9-provedor-2-microsoft-azure-aks)
+10. [Provedor 3, Hetzner Cloud (servidor com K3s)](#10-provedor-3-hetzner-cloud-servidor-com-k3s)
 11. [Evidências e testes](#11-evidências-e-testes)
 12. [Comparação de custos](#12-comparação-de-custos)
-13. [Comparação qualitativa — vantagens e desvantagens](#13-comparação-qualitativa--vantagens-e-desvantagens)
+13. [Vantagens e desvantagens](#13-vantagens-e-desvantagens)
 14. [Recomendação final](#14-recomendação-final)
 15. [Limpeza dos recursos](#15-limpeza-dos-recursos)
-16. [Erros comuns e diagnóstico](#16-erros-comuns-e-diagnóstico)
+16. [Problemas comuns e como resolver](#16-problemas-comuns-e-como-resolver)
 17. [Checklists finais](#17-checklists-finais)
 18. [Glossário](#18-glossário)
 19. [Referências](#19-referências)
@@ -46,214 +48,199 @@
 | Integrantes | Adrian Souza · Fernando Cardoso · Guilherme Vitor · Renan Oliveira · Victor Caitano |
 | Data da elaboração | 02/09/2026 |
 | Repositório da equipe | https://github.com/Renan0204/t3-biblioteca-multicloud |
-| Versão da aplicação utilizada | `dpRanghetti/biblioteca`, branch `master`, commit `5a40964` (2026-06-05) — confirmar no clone da equipe |
+| Versão da aplicação utilizada | `dpRanghetti/biblioteca`, branch `master`, commit `5a40964` (2026-06-05) |
 
 ---
 
 ## 2. Objetivo e escopo
 
-Produzir um **tutorial reproduzível** que permita a outra equipe executar a aplicação
-**Biblioteca** com **Docker** e **Kubernetes** em **três provedores distintos**:
+### O que o trabalho pede
 
-- **AWS** — Amazon Elastic Kubernetes Service (EKS), Kubernetes gerenciado.
-- **Microsoft Azure** — Azure Kubernetes Service (AKS), Kubernetes gerenciado.
-- **Hetzner Cloud** — VPS Linux com **K3s** (Kubernetes leve de nó único), autogerenciado.
+O objetivo é mostrar, de forma que outra equipe consiga repetir, como uma mesma
+aplicação pode ser colocada na internet em **três provedores de nuvem diferentes**,
+usando duas tecnologias muito comuns no mercado: o **Docker**, que empacota a
+aplicação, e o **Kubernetes**, que a mantém funcionando.
 
-A combinação atende à *Regra dos Três Ambientes* (slide 6): dois entre AWS/GCP/Azure
-mais um terceiro ambiente diferente, de outro provedor.
+A regra do trabalho é escolher **dois** provedores entre os três maiores (AWS, Google
+Cloud e Microsoft Azure) e **um terceiro** de outra empresa. A equipe escolheu:
 
-**Escopo e limitações (slide 11):**
+- **AWS (Amazon)**, usando o serviço **EKS**, em que o Kubernetes já vem pronto e é
+  administrado pela Amazon;
+- **Microsoft Azure**, usando o serviço **AKS**, em que o Kubernetes também já vem
+  pronto, administrado pela Microsoft;
+- **Hetzner Cloud**, uma empresa alemã que aluga servidores a preço baixo. Nela não
+  existe Kubernetes pronto: a equipe aluga um servidor e instala uma versão leve do
+  Kubernetes chamada **K3s**.
 
-- A implantação é **demonstrativa**. O banco é **H2 em memória** (`jdbc:h2:mem:banco`):
-  ao reiniciar o container/Pod, **os dados cadastrados são perdidos**.
-- Por isso, usamos **1 réplica** em todos os ambientes.
-- Não há migração para banco externo (não é obrigatório — slide 11).
-- A **mesma imagem** é usada nos três ambientes; os manifestos só mudam onde o
-  provedor exige (a forma de exposição: `LoadBalancer` na nuvem gerenciada,
-  `NodePort`/Ingress na VPS — slide 12).
+Essa combinação é interessante porque compara dois serviços "prontos para usar" com
+um servidor em que a equipe faz tudo por conta própria.
 
-**Arquitetura mínima (slide 12):**
+### Limites deste trabalho
 
-```text
-Usuário
-   |
-IP ou DNS público
-   |
-Service (LoadBalancer)  |  NodePort / Ingress / proxy reverso
-   |
-Deployment Kubernetes (replicas: 1)
-   |
-Pod com container da Biblioteca
-   |
-H2 em memória dentro do processo
-```
+A aplicação guarda os dados **apenas na memória**, sem um banco de dados separado.
+Na prática, isso significa que, **se a aplicação reiniciar, tudo o que foi cadastrado
+é apagado**. Por isso:
+
+- a instalação é **demonstrativa**, feita para mostrar que a aplicação funciona na
+  nuvem, e não para uso real;
+- usamos **uma única cópia** da aplicação em cada nuvem. Com várias cópias, cada uma
+  teria seus próprios dados na memória, e o usuário veria informações diferentes a
+  cada acesso;
+- não foi feita a troca por um banco de dados externo, porque o enunciado não exige.
+
+### Como as peças se encaixam
+
+Quando alguém acessa a aplicação, o caminho é este:
+
+1. A pessoa digita um **endereço de internet** no navegador.
+2. Esse endereço chega a uma **porta de entrada** criada na nuvem, que encaminha o
+   acesso para dentro do Kubernetes.
+3. O **Kubernetes** entrega o acesso para a **cópia da aplicação** que está rodando.
+4. A aplicação responde, usando os dados que estão na sua memória.
+
+A **mesma imagem** (o pacote da aplicação) é usada nas três nuvens. A única coisa que
+muda de uma para outra é a forma dessa porta de entrada, porque cada provedor oferece
+um mecanismo diferente.
 
 ---
 
-## 3. Análise da aplicação Biblioteca
+## 3. A aplicação Biblioteca
 
-Fatos levantados no `pom.xml` e em `src/main/resources/application.properties`:
+### O que ela faz
+
+A Biblioteca é uma aplicação web entregue pelo professor. Ela permite **fazer login**,
+**cadastrar e consultar autores** e **cadastrar e consultar livros**. Usuários com
+perfil de administrador também podem gerenciar outros usuários. Além das telas, ela
+oferece uma **API** (um acesso para outros sistemas), protegida por um sistema de
+tokens chamado JWT.
+
+### Como ela é construída
 
 | Item | Valor |
 |---|---|
-| Framework | Spring Boot **4.0.6** |
-| Runtime | **Java 21** (`<java.version>21</java.version>`) |
-| Coordenadas Maven | `com.unialfa : biblioteca : 0.0.1-SNAPSHOT` |
-| Artefato gerado | `target/biblioteca-0.0.1-SNAPSHOT.jar` |
-| Build | Maven (com `mvnw`/`mvnw.cmd` no repositório) |
-| Porta | **8080** (`server.port=8080`) |
-| Banco | H2 em memória — `spring.datasource.url=jdbc:h2:mem:banco` (`sa` / sem senha) |
-| Console H2 | habilitado em `/h2-console` |
-| Interface web | Thymeleaf + Spring Security (login por formulário em `/login`) |
-| API REST | protegida por JWT — login em `POST /api/auth/login`, demais rotas com `Bearer` |
-| Segredo JWT | propriedade `api.security.token.secret` (HS256, expiração de 24 h) |
-| Usuários iniciais | `admin` / `admin` (ROLE_ADMIN) e `user` / `user` (ROLE_USER) |
+| Linguagem e versão | Java 21 |
+| Framework | Spring Boot 4.0.6 |
+| Arquivo gerado na compilação | `biblioteca-0.0.1-SNAPSHOT.jar` |
+| Porta em que funciona | 8080 |
+| Onde guarda os dados | Banco H2 **em memória** (os dados somem ao reiniciar) |
+| Tela de login | `/login` |
+| Usuários de teste | `admin` / `admin` e `user` / `user` |
 
-**Configuração externa e segredos (slides 10, 22):**
+Os usuários de teste servem **apenas para este trabalho acadêmico**. Em um sistema
+real, senhas padrão como essas nunca devem ser usadas.
 
-- O `application.properties` traz um valor de exemplo para `api.security.token.secret`.
-  **Não** usamos esse valor. Cada integrante fornece o seu, por variável de ambiente
-  `API_SECURITY_TOKEN_SECRET` (o Spring Boot faz o *relaxed binding*
-  `API_SECURITY_TOKEN_SECRET` → `api.security.token.secret`).
-- No Kubernetes, o valor fica em um objeto `Secret` e **nunca** é escrito no tutorial
-  público, no repositório ou em capturas de tela.
-- As credenciais `admin/admin` e `user/user` servem **apenas para o ambiente
-  acadêmico** e não são adequadas para produção (slide 10).
+### A senha interna da aplicação
 
-**Requisitos de execução para o container:**
+Para gerar os tokens de acesso da API, a aplicação precisa de uma **chave secreta**.
+O projeto original traz uma chave de exemplo escrita no próprio código, o que não é
+seguro. Neste trabalho, essa chave **é informada de fora**, no momento em que a
+aplicação é iniciada, por meio de uma variável chamada `API_SECURITY_TOKEN_SECRET`.
 
-1. Comando de início: `java -jar biblioteca-0.0.1-SNAPSHOT.jar`.
-2. Runtime: JRE 21.
-3. Porta exposta: 8080.
-4. Variável obrigatória em produção: `API_SECURITY_TOKEN_SECRET`.
-5. A aplicação **não** grava dados em disco (H2 em memória) — não precisa de volume.
-6. Endpoint usado nas *probes*: `GET /login` (público, responde 200).
+Dentro do Kubernetes, essa chave fica guardada em um recurso próprio para segredos
+(o **Secret**), que funciona como um cofre. Assim, a chave **nunca aparece** no
+código, no repositório, neste documento ou nas capturas de tela.
 
 ---
 
-## 4. Pré-requisitos
+## 4. O que é preciso antes de começar
 
-### 4.1 Ambiente local (slide 14)
+### No computador de quem vai executar
 
-| Ferramenta | Verificação |
-|---|---|
-| Git | `git --version` |
-| Docker Engine / Docker Desktop (com BuildKit) | `docker version` |
-| `kubectl` | `kubectl version --client` |
-| Editor/IDE | VS Code, IntelliJ, etc. |
+- **Git**, para baixar o código da aplicação e deste repositório;
+- **Docker Desktop**, para montar e testar o pacote da aplicação;
+- **kubectl**, a ferramenta que conversa com o Kubernetes;
+- um editor de texto, como o VS Code.
 
-### 4.2 Ferramentas por provedor
+### Ferramentas de cada nuvem
 
-| Provedor | CLI | Verificação |
-|---|---|---|
-| AWS | `aws` (v2) + `eksctl` | `aws --version` · `eksctl version` |
-| Azure | `az` | `az version` |
-| Hetzner | cliente SSH (+ opcional `hcloud`) | `ssh -V` · `hcloud version` |
+Cada provedor tem sua própria ferramenta de linha de comando:
 
-### 4.3 Contas e permissões
+- **AWS:** `aws` e `eksctl` (esta última cria o cluster Kubernetes de forma simples);
+- **Azure:** `az`;
+- **Hetzner:** basta um cliente **SSH** para acessar o servidor. A ferramenta `hcloud`
+  é opcional, porque tudo também pode ser feito pelo site.
 
-- Contas ativas na **AWS**, na **Azure** e na **Hetzner Cloud**.
-- Permissão para criar clusters, redes, registros de imagem e balanceadores.
-- Recomendado: **MFA** habilitado e **orçamento/alertas de custo** configurados
-  (slide 54).
+### Contas
 
-### 4.4 Conta de registro de imagem
-
-- Conta no **Docker Hub** (usaremos um repositório **público** — aceitável apenas
-  para esta atividade, slide 21). Alternativas por provedor (ECR, ACR) estão nas
-  seções 8 e 9.
+É preciso ter conta ativa nos três provedores, com cartão de crédito cadastrado, e uma
+conta no **Docker Hub**, que é onde o pacote da aplicação fica guardado para as nuvens
+baixarem. É recomendável ativar a verificação em duas etapas e configurar alertas de
+gasto nas contas de nuvem.
 
 ---
 
-## 5. Containerização com Docker
+## 5. Empacotando a aplicação com Docker
 
-### 5.1 Clonar e verificar o projeto (slide 15)
+### Por que empacotar
+
+Uma aplicação Java precisa de várias coisas para funcionar: a versão certa do Java, as
+bibliotecas que ela usa e o arquivo compilado. Se cada nuvem tivesse que preparar tudo
+isso separadamente, seria fácil algo sair diferente em cada lugar.
+
+O **Docker** resolve isso criando uma **imagem**: um pacote fechado que contém a
+aplicação e tudo o que ela precisa. Essa imagem é montada **uma única vez** e depois
+funciona do mesmo jeito em qualquer lugar.
+
+### O primeiro passo: baixar a aplicação
 
 ```bash
 git clone https://github.com/dpRanghetti/biblioteca.git
 cd biblioteca
-git log -1 --format="%H %ci"   # registrar o commit/data usados no tutorial
 ```
 
-Confirme a existência de: `pom.xml`, `mvnw`, `mvnw.cmd`, `src/main/java`,
-`src/main/resources/application.properties`.
+Esses comandos baixam o código da aplicação e entram na pasta dela.
 
-### 5.2 `Dockerfile` (multi-stage)
+### A receita do pacote: o Dockerfile
 
-Copie o arquivo [`Dockerfile`](./Dockerfile) deste repositório para a **raiz do
-projeto `biblioteca`**. Decisões (o enunciado permite melhorar o arquivo do slide
-16, desde que explicado — slide 16):
+O **Dockerfile** é o arquivo com as instruções para montar a imagem. O arquivo usado
+está na raiz deste repositório e deve ser copiado para a pasta da aplicação. Ele
+trabalha em **duas etapas**:
 
-| Decisão | Motivo |
-|---|---|
-| Build multi-stage (`maven` → `eclipse-temurin:21-jre`) | imagem final sem Maven, menor e com menos superfície de ataque |
-| Cache do `~/.m2` via BuildKit | builds seguintes muito mais rápidos |
-| `-DskipTests` no build da imagem | testes rodam no pipeline, não na construção da imagem do lab |
-| Usuário `spring` não-root (`USER spring:spring`) | boa prática de segurança (Aula 05, slides 25 e 49) |
-| `-XX:MaxRAMPercentage=75.0` | a JVM respeita o limite de memória do container |
-| `EXPOSE 8080` | porta padrão do Spring Boot |
+1. **Etapa de construção:** usa uma imagem que já tem Java e Maven para compilar o
+   código e gerar o arquivo `.jar`.
+2. **Etapa final:** começa de uma imagem limpa, só com o Java necessário para
+   executar, e copia apenas o `.jar` gerado.
 
-### 5.3 `.dockerignore`
+Separar as etapas deixa o pacote final **menor e mais seguro**, porque as ferramentas
+de compilação não vão junto. Além disso, o Dockerfile:
 
-Copie [`.dockerignore`](./.dockerignore) para a raiz do projeto. Ele remove `.git`,
-`target`, `docs`, `*.md`, IDE e arquivos sensíveis do contexto de build (slide 17).
+- executa a aplicação com um **usuário sem permissões de administrador**, o que reduz
+  o estrago caso alguém explore uma falha;
+- ajusta o Java para **respeitar o limite de memória** definido para o container;
+- informa que a aplicação usa a **porta 8080**.
 
-### 5.4 Construir a imagem (slide 18)
+Junto com o Dockerfile existe o arquivo **`.dockerignore`**, que lista o que **não**
+deve entrar no pacote, como a pasta `.git`, arquivos de compilação antigos e arquivos
+com senhas.
+
+### Montar e testar no próprio computador
 
 ```bash
 docker build -t biblioteca:1.0 .
 ```
 
-> **Apple Silicon / Windows ARM:** os nós dos três ambientes são **x86_64**. Force a
-> arquitetura: `docker buildx build --platform linux/amd64 -t biblioteca:1.0 .`
-> (senão o Pod falha com `exec format error`).
-
-Verificações obrigatórias:
+Este comando lê o Dockerfile e monta a imagem com o nome `biblioteca`, versão `1.0`.
 
 ```bash
-docker image ls biblioteca
-docker history biblioteca:1.0
+docker run --name biblioteca-local -p 8080:8080 -e API_SECURITY_TOKEN_SECRET="uma-chave-longa-e-secreta" biblioteca:1.0
 ```
 
-`[EVIDÊNCIA: saída de docker image ls mostrando biblioteca:1.0 e o tamanho]`
+Este comando **liga a aplicação** a partir da imagem, torna a porta 8080 acessível no
+computador e informa a chave secreta. Em seguida, basta abrir
+`http://localhost:8080/login` no navegador, entrar com `admin` / `admin` e cadastrar
+um autor para confirmar que tudo funciona.
 
-### 5.5 Executar e validar localmente (slides 19–20)
+Testar no computador **antes** de ir para a nuvem é importante: se algo estiver errado
+no pacote, é muito mais rápido descobrir e corrigir localmente.
 
-```bash
-# Linux/macOS
-docker run --name biblioteca-local -p 8080:8080 \
-  -e API_SECURITY_TOKEN_SECRET="$(openssl rand -base64 32)" \
-  biblioteca:1.0
-```
+> Em computadores com processador ARM (como Macs recentes), é preciso montar a imagem
+> para a arquitetura usada pelas nuvens, acrescentando `--platform linux/amd64` ao
+> comando de montagem. Sem isso, a aplicação não inicia na nuvem.
 
-```powershell
-# Windows PowerShell
-$b = [byte[]]::new(32); [Security.Cryptography.RandomNumberGenerator]::Fill($b)
-docker run --name biblioteca-local -p 8080:8080 -e API_SECURITY_TOKEN_SECRET=$([Convert]::ToBase64String($b)) biblioteca:1.0
-```
+### Publicar a imagem
 
-Validar:
-
-- Abrir `http://localhost:8080/login` e entrar com `admin` / `admin`.
-- Cadastrar um autor e um livro (uma operação de escrita).
-- Consultar os logs: `docker logs biblioteca-local`.
-- API: `curl -s -X POST http://localhost:8080/api/auth/login -H "Content-Type: application/json" -d '{"login":"admin","senha":"admin"}'`
-  *(ajuste os nomes dos campos conforme o `AuthController` do projeto).*
-
-`[EVIDÊNCIA: tela de login + tela após autenticar + trecho do log de inicialização]`
-
-Encerrar o teste local:
-
-```bash
-docker stop biblioteca-local && docker rm biblioteca-local
-```
-
-> Corrija o container **localmente** antes de ir para a nuvem. Não use o cluster
-> para depurar o Dockerfile (slide 20).
-
-### 5.6 Publicar a imagem no Docker Hub (slide 21)
-
-Estratégia: **construir uma vez, usar nos três ambientes** (slide 12).
+Para que as três nuvens consigam baixar a mesma imagem, ela é enviada ao **Docker
+Hub**, um serviço que funciona como uma prateleira pública de imagens:
 
 ```bash
 docker login
@@ -261,370 +248,283 @@ docker tag biblioteca:1.0 docker.io/SEU_USUARIO_DOCKERHUB/biblioteca:1.0
 docker push docker.io/SEU_USUARIO_DOCKERHUB/biblioteca:1.0
 ```
 
-Deixe o repositório **público** para esta atividade (ou mantenha privado e configure
-`imagePullSecret` — ver seções por provedor).
-
-`[EVIDÊNCIA: repositório no Docker Hub com a tag 1.0]`
-
----
-
-## 6. Manifestos Kubernetes
-
-Arquivos neste repositório (diretório [`k8s/`](./k8s/)):
-
-```text
-k8s/
-├── base/
-│   ├── deployment.yaml            # 1 réplica, Secret via env, probes, limites
-│   └── secret.example.yaml        # MODELO - não aplicar direto
-├── managed/
-│   └── service-loadbalancer.yaml  # AWS EKS + Azure AKS
-└── vps/
-    ├── service-nodeport.yaml      # Hetzner + K3s (porta 30080)
-    └── ingress-traefik.yaml       # opcional: Ingress + HTTPS na VPS
-```
-
-### 6.1 `Secret` (slide 23)
-
-Crie o `Secret` **sem gravar o valor em disco**:
-
-```bash
-kubectl create secret generic biblioteca-secret \
-  --from-literal=jwt-secret="$(openssl rand -base64 32)"
-```
-
-O arquivo [`k8s/base/secret.example.yaml`](./k8s/base/secret.example.yaml) documenta
-o formato e traz a variante para PowerShell. **Nunca** versione o valor real
-(slides 22 e 54).
-
-### 6.2 `Deployment` (slides 24–26)
-
-[`k8s/base/deployment.yaml`](./k8s/base/deployment.yaml). Pontos-chave:
-
-- `replicas: 1` (por causa do H2 em memória).
-- `image:` — **substitua** por `docker.io/SEU_USUARIO_DOCKERHUB/biblioteca:1.0`.
-- `env` `API_SECURITY_TOKEN_SECRET` via `secretKeyRef` → `biblioteca-secret` / `jwt-secret`.
-- `resources`: requests `250m` / `384Mi`; limits `1` / `768Mi` (ponto de partida —
-  registrar o valor efetivamente usado; se houver `OOMKilled`, subir para `1Gi`).
-- `startupProbe` + `readinessProbe` + `livenessProbe` em `GET /login` (porta 8080).
-- `securityContext`: `runAsNonRoot`, `allowPrivilegeEscalation: false`, drop de todas
-  as *capabilities*.
-
-### 6.3 `Service`
-
-| Ambiente | Arquivo | Tipo | Acesso |
-|---|---|---|---|
-| AWS EKS / Azure AKS | `k8s/managed/service-loadbalancer.yaml` | `LoadBalancer` | balanceador com IP/DNS público (recurso cobrado — slide 27) |
-| Hetzner + K3s | `k8s/vps/service-nodeport.yaml` | `NodePort` | `http://IP_DA_VPS:30080/login` |
-| Hetzner + K3s (opcional) | `k8s/vps/ingress-traefik.yaml` | `Ingress` (Traefik) | `http(s)://SEU_DOMINIO/` |
+O primeiro comando entra na conta, o segundo dá à imagem o nome completo que ela terá
+no Docker Hub e o terceiro faz o envio. Para esta atividade, o repositório de imagem
+pode ser público. A Amazon e a Microsoft também oferecem prateleiras próprias (ECR e
+ACR), que são mostradas nas seções de cada provedor.
 
 ---
 
-## 7. Comandos comuns aos três ambientes
+## 6. Os arquivos de configuração do Kubernetes
 
-Depois que o `kubectl` estiver apontando para o cluster correto (cada seção mostra
-como), o fluxo é **o mesmo** (slide 28):
+### O papel do Kubernetes
+
+Depois que a imagem existe, é preciso alguém para **ligar a aplicação na nuvem,
+acompanhar se ela continua funcionando e religá-la se ela parar**. Esse é o trabalho
+do **Kubernetes**.
+
+Em vez de dar ordens passo a passo, no Kubernetes a equipe **descreve em arquivos como
+quer que as coisas estejam** (por exemplo: "quero uma cópia da aplicação ligada,
+usando esta imagem"). O Kubernetes lê essa descrição e trabalha continuamente para
+que a realidade fique igual ao que foi descrito. Esses arquivos, chamados de
+**manifestos**, estão na pasta `k8s/` deste repositório.
+
+### Os três recursos usados
+
+**1. O cofre da senha (Secret).** Guarda a chave secreta da aplicação. Ele é criado
+direto por comando, para que o valor real nunca seja salvo em arquivo:
 
 ```bash
-# 1) Segredo
-kubectl create secret generic biblioteca-secret \
-  --from-literal=jwt-secret="$(openssl rand -base64 32)"
+kubectl create secret generic biblioteca-secret --from-literal=jwt-secret="uma-chave-longa-e-secreta"
+```
 
-# 2) Deployment (com a imagem já ajustada no arquivo)
+O arquivo `k8s/base/secret.example.yaml` existe só como exemplo do formato.
+
+**2. A aplicação em si (Deployment).** O arquivo `k8s/base/deployment.yaml` diz ao
+Kubernetes:
+
+- qual imagem usar (a que foi publicada no Docker Hub);
+- que deve existir **uma cópia** da aplicação ligada;
+- que a chave secreta deve ser lida do cofre;
+- quanta memória e processamento a aplicação pode usar;
+- como verificar se ela está saudável. O Kubernetes acessa a tela de login de tempos
+  em tempos: se ela responde, a aplicação está bem; se para de responder, ele religa a
+  aplicação sozinho;
+- que a aplicação roda sem permissões de administrador.
+
+**3. A porta de entrada (Service).** É o que permite acessar a aplicação de fora da
+nuvem. Esta é a única parte que muda entre os provedores:
+
+- na **AWS e na Azure**, usamos o arquivo `k8s/managed/service-loadbalancer.yaml`, que
+  pede ao provedor um **endereço público** na internet. Esse endereço é um recurso
+  cobrado;
+- na **Hetzner**, usamos `k8s/vps/service-nodeport.yaml`, que abre a **porta 30080** do
+  próprio servidor. O acesso fica em `http://IP_DO_SERVIDOR:30080/login`.
+
+Existe ainda um arquivo opcional, `k8s/vps/ingress-traefik.yaml`, para quem quiser
+usar um nome de domínio e HTTPS na Hetzner.
+
+---
+
+## 7. O caminho comum às três nuvens
+
+Depois que a ferramenta `kubectl` está conectada ao Kubernetes de uma nuvem (cada seção
+seguinte explica como fazer isso), os passos para instalar a aplicação são **os mesmos
+nas três**:
+
+```bash
+kubectl create secret generic biblioteca-secret --from-literal=jwt-secret="uma-chave-longa-e-secreta"
 kubectl apply -f k8s/base/deployment.yaml
-
-# 3) Service — escolha conforme o ambiente:
-kubectl apply -f k8s/managed/service-loadbalancer.yaml     # AWS / Azure
-# ou
-kubectl apply -f k8s/vps/service-nodeport.yaml             # Hetzner / K3s
-
-# 4) Acompanhar
+kubectl apply -f k8s/managed/service-loadbalancer.yaml
 kubectl get pods
-kubectl get deployment
-kubectl get service
-kubectl rollout status deployment/biblioteca
+```
 
-# 5) Diagnóstico
-kubectl describe pod <NOME_DO_POD>
+Em ordem, esses comandos: guardam a senha no cofre, instalam a aplicação, criam a porta
+de entrada e mostram se a aplicação está funcionando. Na Hetzner, o terceiro comando usa
+o arquivo `k8s/vps/service-nodeport.yaml`.
+
+A aplicação está pronta quando o último comando mostra a situação **`Running`** e a
+indicação **`1/1`**, que quer dizer "uma cópia pedida, uma cópia pronta".
+
+Se algo der errado, estes dois comandos ajudam a descobrir o motivo:
+
+```bash
+kubectl describe pod NOME_DO_POD
 kubectl logs deployment/biblioteca
 ```
 
-Verificação de "pronto": `kubectl get pods` deve mostrar `1/1 Running` e
-`kubectl get endpoints biblioteca` deve listar o IP do Pod na porta 8080.
+O primeiro mostra o que o Kubernetes tentou fazer e onde falhou; o segundo mostra as
+mensagens da própria aplicação.
 
 ---
 
-## 8. Provedor 1 — AWS (Amazon EKS)
+## 8. Provedor 1, AWS (Amazon EKS)
 
-**Produto:** Amazon EKS · **Região de exemplo:** `us-east-1` (N. Virginia).
-Roteiro conforme slides 29–30.
+### Como funciona na Amazon
 
-### 8.1 Conta, região e identidade
+Na AWS, o Kubernetes é oferecido pelo serviço **EKS**. A Amazon cuida da parte central
+do Kubernetes e a equipe escolhe quantos servidores quer para rodar as aplicações.
+Usamos a região **us-east-1** (Virgínia, nos Estados Unidos), que costuma ter os
+preços mais baixos da AWS.
+
+### Passo 1: conectar a ferramenta à conta
 
 ```bash
-aws configure                       # Access Key, Secret, região us-east-1, output json
-aws sts get-caller-identity         # confirma a conta/identidade
+aws configure
+aws sts get-caller-identity
 ```
 
-`[EVIDÊNCIA: get-caller-identity com o Account ID ocultado]`
+O primeiro comando pede as chaves de acesso da conta e a região. O segundo confirma
+em qual conta a ferramenta está conectada.
 
-### 8.2 Registro ECR (alternativa ao Docker Hub)
+### Passo 2 (opcional): guardar a imagem na Amazon
+
+Em vez do Docker Hub, é possível usar a prateleira de imagens da própria Amazon, o
+**ECR**. Para isso, cria-se o repositório, faz-se o login e envia-se a imagem:
 
 ```bash
 aws ecr create-repository --repository-name biblioteca --region us-east-1
-
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-ECR=$ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
-
-aws ecr get-login-password --region us-east-1 \
-  | docker login --username AWS --password-stdin $ECR
-
-docker tag biblioteca:1.0 $ECR/biblioteca:1.0
-docker push $ECR/biblioteca:1.0
 ```
 
-Se usar o ECR, ajuste `image:` no `deployment.yaml` para `$ECR/biblioteca:1.0`.
-Os nós criados pelo `eksctl` já recebem a política `AmazonEC2ContainerRegistryReadOnly`,
-então o *pull* do ECR funciona **sem** `imagePullSecret`.
+Depois do envio, o endereço da imagem no arquivo `deployment.yaml` deve ser trocado
+pelo endereço do ECR. Os servidores criados pela AWS já têm permissão para baixar
+imagens dali.
 
-### 8.3 Criar o cluster EKS e os nós
+### Passo 3: criar o cluster
 
 ```bash
-eksctl create cluster \
-  --name biblioteca \
-  --region us-east-1 \
-  --nodes 2 --node-type t3.medium \
-  --managed
+eksctl create cluster --name biblioteca --region us-east-1 --nodes 2 --node-type t3.medium --managed
 ```
 
-- Demora **~15–20 min** (o `eksctl` cria uma stack CloudFormation com VPC, sub-redes,
-  control plane e *node group*).
-- `t3.medium` = 2 vCPU / 4 GiB. Para reduzir custo no lab, use `--nodes 1`
-  (registre a escolha).
+Este comando cria **todo o ambiente** de uma vez: a rede, a parte central do
+Kubernetes e **dois servidores** do tipo `t3.medium` (2 processadores e 4 GB de
+memória cada). É a etapa mais demorada de todo o trabalho, levando de **15 a 20
+minutos**. Para economizar, é possível usar só um servidor, trocando `--nodes 2` por
+`--nodes 1`.
 
-`[EVIDÊNCIA: "EKS cluster is ready" no fim do eksctl]`
-
-### 8.4 Configurar o contexto do `kubectl`
+### Passo 4: conectar o kubectl e instalar a aplicação
 
 ```bash
 aws eks update-kubeconfig --name biblioteca --region us-east-1
-kubectl get nodes                   # 2 nós em estado Ready
+kubectl get nodes
 ```
 
-`[EVIDÊNCIA: kubectl get nodes]`
+O primeiro comando conecta o `kubectl` ao cluster recém-criado; o segundo mostra os
+servidores, que devem aparecer como `Ready` (prontos). A partir daí, seguem-se os
+passos da [seção 7](#7-o-caminho-comum-às-três-nuvens).
 
-### 8.5 Implantar
+### Passo 5: acessar a aplicação
 
 ```bash
-kubectl create secret generic biblioteca-secret \
-  --from-literal=jwt-secret="$(openssl rand -base64 32)"
-
-kubectl apply -f k8s/base/deployment.yaml
-kubectl apply -f k8s/managed/service-loadbalancer.yaml
-
-kubectl rollout status deployment/biblioteca
-kubectl get pods -o wide
+kubectl get service biblioteca
 ```
 
-### 8.6 Obter o endereço público e validar
-
-```bash
-kubectl get service biblioteca -w
-# aguarde a coluna EXTERNAL-IP deixar de ser <pending> (~3–5 min)
-# será um hostname do tipo  a1b2c3...elb.us-east-1.amazonaws.com
-```
-
-Acesse `http://<EXTERNAL-IP>/login`, entre com `admin`/`admin` e faça uma operação.
-
-```bash
-kubectl logs deployment/biblioteca --tail=50
-```
-
-`[EVIDÊNCIA: get service com EXTERNAL-IP + tela da aplicação no domínio do ELB + login OK + logs sem erro]`
-
-> Por padrão o `type: LoadBalancer` no EKS provisiona um **Classic Load Balancer**
-> (via *cloud controller* interno). É suficiente para o lab. Em produção usaria-se o
-> **AWS Load Balancer Controller** com NLB/ALB Ingress.
-
-### 8.7 Exclusão — ver seção [15](#15-limpeza-dos-recursos)
+Este comando mostra o **endereço público** da aplicação, na coluna `EXTERNAL-IP`. Na
+AWS, esse endereço é um nome longo terminado em `elb.amazonaws.com` e pode levar de
+**3 a 5 minutos** para aparecer. Depois disso, basta abrir o endereço no navegador,
+acrescentando `/login`, entrar com `admin` / `admin` e cadastrar um autor.
 
 ---
 
-## 9. Provedor 2 — Microsoft Azure (AKS)
+## 9. Provedor 2, Microsoft Azure (AKS)
 
-**Produto:** Azure Kubernetes Service · **Região de exemplo:** `eastus`.
-Roteiro conforme slides 33–34.
+### Como funciona na Microsoft
 
-### 9.1 Assinatura e grupo de recursos
+Na Azure, o Kubernetes é oferecido pelo serviço **AKS**. No plano gratuito do AKS, a
+**parte central do Kubernetes não é cobrada**: paga-se apenas pelos servidores e pelo
+endereço público. A Azure organiza tudo em **grupos de recursos**, que são como pastas;
+isso facilita muito a limpeza no final. Usamos a região **eastus** (Estados Unidos).
+
+### Passo 1: entrar na conta e criar o grupo
 
 ```bash
 az login
-az account show --output table
 az group create --name rg-biblioteca --location eastus
 ```
 
-### 9.2 Azure Container Registry (ACR)
+O primeiro comando abre o navegador para entrar na conta. O segundo cria o grupo
+`rg-biblioteca`, onde ficará tudo o que for criado para o trabalho.
+
+### Passo 2: criar a prateleira de imagens e enviar a imagem
 
 ```bash
-# o nome do ACR é global e único: 5–50 caracteres alfanuméricos minúsculos
-az acr create --resource-group rg-biblioteca --name acrbibliotecaEQUIPEN --sku Basic
-az acr login --name acrbibliotecaEQUIPEN
-
-docker tag biblioteca:1.0 acrbibliotecaEQUIPEN.azurecr.io/biblioteca:1.0
-docker push acrbibliotecaEQUIPEN.azurecr.io/biblioteca:1.0
+az acr create --resource-group rg-biblioteca --name NOMEUNICOACR --sku Basic
+az acr login --name NOMEUNICOACR
+docker tag biblioteca:1.0 NOMEUNICOACR.azurecr.io/biblioteca:1.0
+docker push NOMEUNICOACR.azurecr.io/biblioteca:1.0
 ```
 
-Ajuste `image:` no `deployment.yaml` para
-`acrbibliotecaEQUIPEN.azurecr.io/biblioteca:1.0`.
+Estes comandos criam o **ACR** (a prateleira de imagens da Microsoft), fazem login
+nele e enviam a imagem. O nome do ACR precisa ser **único no mundo** e ter só letras
+minúsculas e números. Depois, o endereço da imagem no `deployment.yaml` deve ser
+trocado pelo endereço do ACR.
 
-`[EVIDÊNCIA: az acr repository list --name acrbibliotecaEQUIPEN]`
-
-### 9.3 Criar o cluster AKS integrado ao ACR
+### Passo 3: criar o cluster
 
 ```bash
-az aks create \
-  --resource-group rg-biblioteca \
-  --name biblioteca \
-  --node-count 1 \
-  --node-vm-size Standard_B2s \
-  --tier free \
-  --attach-acr acrbibliotecaEQUIPEN \
-  --generate-ssh-keys
+az aks create --resource-group rg-biblioteca --name biblioteca --node-count 1 --node-vm-size Standard_B2s --tier free --attach-acr NOMEUNICOACR --generate-ssh-keys
 ```
 
-- **~5–10 min.**
-- `--tier free`: o **control plane não é cobrado** (sem SLA financeiro).
-- `Standard_B2s` = 2 vCPU / 4 GiB. Se houver erro de cota, tente `Standard_DS2_v2`.
-- `--attach-acr`: o kubelet passa a puxar imagens do ACR **sem** `imagePullSecret`.
+Este único comando cria o cluster com **um servidor** de 2 processadores e 4 GB de
+memória, no **plano gratuito**, e já **autoriza o cluster a baixar imagens do ACR**,
+sem nenhuma configuração extra. Leva de **5 a 10 minutos**.
 
-### 9.4 Credenciais e implantação
+### Passo 4: conectar o kubectl, instalar e acessar
 
 ```bash
 az aks get-credentials --resource-group rg-biblioteca --name biblioteca
 kubectl get nodes
-
-kubectl create secret generic biblioteca-secret \
-  --from-literal=jwt-secret="$(openssl rand -base64 32)"
-
-kubectl apply -f k8s/base/deployment.yaml
-kubectl apply -f k8s/managed/service-loadbalancer.yaml
-kubectl rollout status deployment/biblioteca
 ```
 
-### 9.5 Validar
-
-```bash
-kubectl get service biblioteca -w
-# EXTERNAL-IP é um IP público real (costuma sair em ~1–2 min)
-```
-
-Acesse `http://<EXTERNAL-IP>/login`, autentique e faça uma operação de escrita.
-
-`[EVIDÊNCIA: get nodes + get service com IP + tela da aplicação + login OK + logs]`
-
-### 9.6 Exclusão — ver seção [15](#15-limpeza-dos-recursos)
+Estes comandos conectam o `kubectl` ao cluster e mostram o servidor pronto. Em seguida,
+seguem-se os passos da [seção 7](#7-o-caminho-comum-às-três-nuvens). O endereço
+público aparece com `kubectl get service biblioteca`, normalmente em **1 a 2 minutos**,
+e é um número de IP. Basta abri-lo no navegador com `/login` no final.
 
 ---
 
-## 10. Provedor 3 — Hetzner Cloud (VPS + K3s)
+## 10. Provedor 3, Hetzner Cloud (servidor com K3s)
 
-**Produto:** Hetzner Cloud, servidor **CX22** (2 vCPU x86 / 4 GB / 40 GB) ·
-**Local de exemplo:** Nuremberg (`nbg1`). Roteiro conforme slides 35–37.
+### Como funciona na Hetzner
 
-### 10.1 Criar o servidor
+A Hetzner **não oferece Kubernetes pronto**. Ela aluga servidores virtuais (também
+chamados de VPS). Por isso, a equipe aluga um servidor e instala nele o **K3s**, uma
+versão leve e completa do Kubernetes, ideal para um único servidor.
 
-**Pelo Console:** *Project → Add Server →* Ubuntu 24.04, tipo **CX22**, adicione sua
-**chave SSH**, crie.
+Usamos o servidor **CX22**, com 2 processadores, 4 GB de memória e 40 GB de disco,
+suficiente para esta aplicação.
 
-**Ou pela CLI `hcloud`:**
+### Passo 1: criar o servidor
 
-```bash
-hcloud context create biblioteca          # cola o API token do projeto
-hcloud ssh-key create --name minha-chave --public-key-from-file ~/.ssh/id_ed25519.pub
-hcloud server create --name biblioteca --type cx22 --image ubuntu-24.04 \
-  --ssh-key minha-chave --location nbg1
-hcloud server ip biblioteca               # anote o IP público
-```
+Pelo site da Hetzner, dentro de um projeto, escolhe-se **Add Server**, o sistema
+**Ubuntu 24.04**, o tipo **CX22** e a **chave SSH** que será usada para entrar no
+servidor. Ao final, a Hetzner mostra o **endereço IP** do servidor.
 
-### 10.2 Firewall (slide 36)
+### Passo 2: liberar as portas no firewall
 
-Crie um **Firewall** no Console (ou `hcloud firewall`) e associe ao servidor,
-liberando **entrada TCP**:
+O firewall é a proteção que decide quais acessos podem chegar ao servidor. No site da
+Hetzner, cria-se um firewall ligado ao servidor liberando:
 
-| Porta | Uso |
-|---|---|
-| 22 | SSH |
-| 80, 443 | HTTP/HTTPS (Ingress/proxy reverso) |
-| 30080 | teste via NodePort |
+- a porta **22**, para a equipe acessar o servidor por SSH;
+- as portas **80 e 443**, para uso futuro com domínio e HTTPS;
+- a porta **30080**, por onde a aplicação será acessada.
 
-### 10.3 Instalar o K3s
+### Passo 3: instalar o Kubernetes (K3s)
 
 ```bash
-ssh root@IP_DA_VPS
+ssh root@IP_DO_SERVIDOR
 curl -sfL https://get.k3s.io | sh -
-k3s kubectl get nodes            # 1 nó "Ready" (control plane + worker no mesmo host)
+k3s kubectl get nodes
 ```
 
-O K3s já inclui **Traefik** (Ingress) e **ServiceLB/Klipper** (permite até
-`type: LoadBalancer` usando o IP do nó). O kubeconfig fica em
-`/etc/rancher/k3s/k3s.yaml`.
+O primeiro comando entra no servidor. O segundo baixa e **instala o K3s
+automaticamente**, em poucos minutos. O terceiro confirma que o Kubernetes está
+funcionando, mostrando o servidor como `Ready`.
 
-### 10.4 Levar os arquivos para a VPS (slide 36)
-
-Opção A — clonar este repositório no servidor:
+### Passo 4: levar os arquivos e instalar a aplicação
 
 ```bash
-ssh root@IP_DA_VPS
 git clone https://github.com/Renan0204/t3-biblioteca-multicloud.git
 cd t3-biblioteca-multicloud
 ```
 
-Opção B — copiar apenas a pasta `k8s/` da sua máquina:
+Estes comandos baixam os arquivos de configuração deste repositório **dentro do
+servidor**. Como a imagem está pública no Docker Hub, o K3s consegue baixá-la sem
+configuração extra. Depois, seguem-se os passos da
+[seção 7](#7-o-caminho-comum-às-três-nuvens), usando `k3s kubectl` no lugar de
+`kubectl` e o arquivo `k8s/vps/service-nodeport.yaml` como porta de entrada.
 
-```bash
-scp -r k8s/ root@IP_DA_VPS:/root/biblioteca-multicloud/
-```
+### Passo 5: acessar a aplicação
 
-### 10.5 Implantar
+A aplicação fica disponível em `http://IP_DO_SERVIDOR:30080/login`. Basta entrar com
+`admin` / `admin` e cadastrar um autor.
 
-A imagem pública do Docker Hub é puxada diretamente pelo K3s (sem registro
-adicional). Ajuste `image:` no `deployment.yaml` para
-`docker.io/SEU_USUARIO_DOCKERHUB/biblioteca:1.0`.
+### Sobre HTTPS
 
-```bash
-k3s kubectl create secret generic biblioteca-secret \
-  --from-literal=jwt-secret="$(openssl rand -base64 32)"
-
-k3s kubectl apply -f k8s/base/deployment.yaml
-k3s kubectl apply -f k8s/vps/service-nodeport.yaml
-
-k3s kubectl rollout status deployment/biblioteca
-k3s kubectl get pods,svc
-```
-
-### 10.6 Validar
-
-Acesse `http://IP_DA_VPS:30080/login`, autentique com `admin`/`admin` e faça uma
-operação.
-
-```bash
-k3s kubectl logs deployment/biblioteca --tail=50
-```
-
-`[EVIDÊNCIA: get nodes + get pods/svc + tela da aplicação em IP:30080 + login OK + logs]`
-
-### 10.7 Acesso externo, HTTPS e portas (slide 36)
-
-- **Como o acesso externo foi configurado:** `NodePort` 30080 + Firewall Hetzner
-  liberando a porta.
-- **Portas liberadas:** 22, 80, 443, 30080.
-- **HTTPS:** com um nome DNS apontando para o IP da VPS, aplicar
-  [`k8s/vps/ingress-traefik.yaml`](./k8s/vps/ingress-traefik.yaml) e instalar o
-  **cert-manager** com um `ClusterIssuer` Let's Encrypt para emissão automática de
-  certificado. Alternativa: proxy reverso Nginx/Caddy no host terminando TLS e
-  encaminhando para o `NodePort`.
-
-### 10.8 Exclusão — ver seção [15](#15-limpeza-dos-recursos)
+Nesta configuração, o acesso é feito por **HTTP**, sem cadeado. Para um uso real, o
+ideal seria apontar um nome de domínio para o servidor e usar o arquivo opcional
+`k8s/vps/ingress-traefik.yaml` junto com um gerador gratuito de certificados (como o
+Let's Encrypt), para ter **HTTPS**.
 
 ---
 
@@ -632,152 +532,246 @@ k3s kubectl logs deployment/biblioteca --tail=50
 
 Os arquivos disponíveis estão reunidos no [índice de evidências com legendas](./docs/evidencias/README.md), organizado por ambiente. As capturas de login e cadastro local foram obtidas com Java, sem Docker.
 
-Capturar, **para cada um dos três ambientes** (slide 38), ocultando tokens, chaves,
-Account/Subscription IDs e dados de cobrança:
+### O que precisa ser comprovado em cada nuvem
 
-| # | Evidência | Comando de apoio |
-|---|---|---|
-| 1 | Provedor, produto e região | painel do provedor |
-| 2 | Cluster e nós disponíveis | `kubectl get nodes -o wide` |
-| 3 | Imagem publicada no registro | painel do Docker Hub / ECR / ACR |
-| 4 | `Deployment` disponível | `kubectl get deployment biblioteca` |
-| 5 | Pod `Running` e `1/1` pronto | `kubectl get pods` |
-| 6 | Mecanismo de exposição | `kubectl get service` (ou Ingress) |
-| 7 | Aplicação acessível externamente | navegador na URL pública |
-| 8 | Login realizado | tela após autenticar + 1 operação de escrita |
-| 9 | Logs sem erro impeditivo | `kubectl logs deployment/biblioteca` |
-| 10 | Procedimento de remoção executado | painel mostrando recursos removidos |
+Para mostrar que a aplicação realmente funcionou em cada ambiente, é preciso registrar
+capturas de tela de:
 
-Salve os arquivos em [`docs/evidencias/`](./docs/evidencias/) com nomes como
-`aws-05-pods.png`, `azure-07-app.png`, `hetzner-09-logs.png`.
+1. o **provedor, o serviço e a região** usados;
+2. o **cluster e os servidores** prontos;
+3. a **imagem** guardada na prateleira de imagens;
+4. a **aplicação instalada** e a cópia em situação `Running`;
+5. a **porta de entrada** com o endereço público;
+6. a **aplicação aberta no navegador**, com a barra de endereço visível;
+7. o **login feito** e um **cadastro realizado**;
+8. as **mensagens da aplicação** sem erros graves;
+9. a **limpeza** dos recursos no final.
+
+Nas capturas, é preciso **esconder** números de conta, chaves, tokens e dados de
+cobrança. Os arquivos ficam na pasta `docs/evidencias/`.
+
+### Teste da aplicação no computador
+
+#### Tela de login
+
+![Tela de login](docs/evidencias/local-02-login.png)
+
+#### Cadastro de autor
+
+![Cadastro de autor](docs/evidencias/local-03-operacao.png)
+
+### Capturas ilustrativas das etapas
+
+As capturas abaixo foram preparadas em simulação, conforme o índice de evidências, para
+ilustrar o que cada etapa deve mostrar. Elas não comprovam a execução nas contas dos
+provedores e devem ser substituídas pelas capturas da execução real.
+
+#### Montagem da imagem Docker
+
+![Montagem da imagem Docker](docs/evidencias/local-01-build.png)
+
+#### Mensagens da aplicação no Docker
+
+![Mensagens da aplicação no Docker](docs/evidencias/local-04-logs.png)
+
+#### Envio da imagem ao Docker Hub
+
+![Envio da imagem ao Docker Hub](docs/evidencias/local-05-dockerhub.png)
+
+#### Hetzner: servidor criado
+
+![Hetzner: servidor criado](docs/evidencias/hetzner-01-servidor.png)
+
+#### Hetzner: Kubernetes pronto
+
+![Hetzner: Kubernetes pronto](docs/evidencias/hetzner-02-nodes.png)
+
+#### Hetzner: aplicação e porta de entrada
+
+![Hetzner: aplicação e porta de entrada](docs/evidencias/hetzner-03-pods.png)
+
+#### Hetzner: mensagens da aplicação
+
+![Hetzner: mensagens da aplicação](docs/evidencias/hetzner-05-logs.png)
+
+#### Hetzner: limpeza
+
+![Hetzner: limpeza](docs/evidencias/hetzner-07-limpeza.png)
+
+#### Azure: grupo de recursos
+
+![Azure: grupo de recursos](docs/evidencias/azure-01-grupo.png)
+
+#### Azure: prateleira de imagens
+
+![Azure: prateleira de imagens](docs/evidencias/azure-02-acr.png)
+
+#### Azure: servidor do cluster pronto
+
+![Azure: servidor do cluster pronto](docs/evidencias/azure-03-nodes.png)
+
+#### Azure: aplicação e endereço público
+
+![Azure: aplicação e endereço público](docs/evidencias/azure-04-pods-service.png)
+
+#### Azure: mensagens da aplicação
+
+![Azure: mensagens da aplicação](docs/evidencias/azure-06-logs.png)
+
+#### Azure: limpeza
+
+![Azure: limpeza](docs/evidencias/azure-07-limpeza.png)
+
+#### AWS: conta conectada
+
+![AWS: conta conectada](docs/evidencias/aws-01-identidade.png)
+
+#### AWS: prateleira de imagens
+
+![AWS: prateleira de imagens](docs/evidencias/aws-02-ecr.png)
+
+#### AWS: servidor do cluster pronto
+
+![AWS: servidor do cluster pronto](docs/evidencias/aws-03-nodes.png)
+
+#### AWS: aplicação e endereço público
+
+![AWS: aplicação e endereço público](docs/evidencias/aws-04-pods-service.png)
+
+#### AWS: mensagens da aplicação
+
+![AWS: mensagens da aplicação](docs/evidencias/aws-06-logs.png)
+
+#### AWS: limpeza
+
+![AWS: limpeza](docs/evidencias/aws-07-limpeza.png)
 
 ---
 
 ## 12. Comparação de custos
 
-### 12.1 Regras adotadas (slide 40)
+### 12.1 Como os valores foram estimados
 
-| Parâmetro | Valor |
+Para a comparação ser justa, todos os valores seguem as mesmas regras:
+
+| Regra | Valor |
 |---|---|
-| Data da consulta | `DD/MM/AAAA` *(preencher no dia da entrega)* |
-| Moeda | USD (com nota de conversão para BRL) |
-| Regiões | AWS `us-east-1` · Azure `eastus` · Hetzner `nbg1` |
-| SO / arquitetura | Linux / x86_64 |
-| Nós | AWS 2× `t3.medium` · Azure 1× `Standard_B2s` · Hetzner 1× `CX22` |
-| Horas/mês | ~730 h (uso contínuo) |
-| Créditos gratuitos | **não** embutidos nos totais (listados à parte) |
+| Data da consulta dos preços | `DD/MM/AAAA` *(preencher no dia da entrega)* |
+| Moeda | Dólar americano |
+| Regiões | AWS nos EUA (us-east-1), Azure nos EUA (eastus), Hetzner na Europa |
+| Servidores | AWS com 2 `t3.medium`, Azure com 1 `Standard_B2s`, Hetzner com 1 `CX22` |
+| Tempo considerado | O mês inteiro ligado (cerca de 730 horas) |
+| Créditos gratuitos | Não descontados |
 
-> Valores **estimados** não substituem a fatura real (slide 40). Reconsulte os
-> preços na data da entrega nas páginas oficiais (seção 19).
+São **estimativas**: a conta real pode variar, e os preços devem ser conferidos nas
+páginas oficiais no dia da entrega.
 
-### 12.2 Tabela quantitativa (modelo do slide 42 — valores de exemplo)
+### 12.2 Quanto custa cada parte
 
-| Critério | AWS (EKS) | Azure (AKS) | Hetzner (K3s) |
+| O que é cobrado | AWS (EKS) | Azure (AKS) | Hetzner |
 |---|---:|---:|---:|
-| Serviço Kubernetes | Amazon EKS | Azure AKS (tier Free) | K3s em VPS CX22 |
-| Região e configuração | us-east-1 · 2× t3.medium | eastus · 1× Standard_B2s | nbg1 · 1× CX22 |
-| Gestão do cluster / mês | ~US$ 73,00 (US$ 0,10/h) | US$ 0,00 | US$ 0,00 |
-| Computação / mês | ~US$ 60,00 (2 nós) | ~US$ 30,00 (1 nó) | incluído no CX22 |
-| Disco e armazenamento | ~US$ 3,00 (2× 20 GB gp3) | ~US$ 0–5 (OS disk) | incluído (40 GB) |
-| Load balancer / IP / rede | ~US$ 18,00 (Classic ELB) | ~US$ 18,00 (Standard LB + IP) | US$ 0,00 (IP do nó / NodePort) |
-| Registro de imagem | ~US$ 0,10 (ECR < 1 GB) | US$ 5,00 (ACR Basic) | US$ 0,00 (Docker Hub público) |
-| Tráfego de saída (baixo) | ~US$ 1,00 | ~US$ 1,00 | incluído (20 TB) |
-| **Total mensal estimado** | **≈ US$ 155** | **≈ US$ 56** | **≈ US$ 4,10 (€ 3,79)** |
-| Tempo aproximado de implantação | ~15–20 min | ~6–10 min | ~3–5 min |
+| Parte central do Kubernetes | cerca de 73 dólares | grátis (plano gratuito) | grátis (K3s instalado pela equipe) |
+| Servidores | cerca de 60 dólares (2 servidores) | cerca de 30 dólares (1 servidor) | incluído no servidor |
+| Disco | cerca de 3 dólares | até 5 dólares | incluído |
+| Endereço público na internet | cerca de 18 dólares | cerca de 18 dólares | grátis (usa o IP do servidor) |
+| Prateleira de imagens | menos de 1 dólar | 5 dólares | grátis (Docker Hub público) |
+| Tráfego de dados | cerca de 1 dólar | cerca de 1 dólar | incluído |
+| **Total por mês** | **cerca de 155 dólares** | **cerca de 56 dólares** | **cerca de 4 dólares** |
+| Tempo para criar o ambiente | 15 a 20 minutos | 5 a 10 minutos | 3 a 5 minutos |
 
-Observações:
+### 12.3 Por que a diferença é tão grande
 
-- Reduzindo a AWS para **1× t3.medium**, o total cai para **≈ US$ 125/mês**.
-- Créditos gratuitos (à parte): **AWS** não oferece crédito de Kubernetes; **Azure**
-  dá US$ 200 por 30 dias para contas novas; **Hetzner** não oferece crédito, mas o
-  preço absoluto já é baixo.
-- **Custo por hora de laboratório** (criar, validar, coletar evidências e destruir
-  em ~3 h): AWS ≈ US$ 0,60 (só o control plane) + nós; Azure ≈ nós; Hetzner ≈ US$ 0,02.
+Na **AWS**, paga-se separadamente por quase tudo: só a parte central do Kubernetes custa
+cerca de 73 dólares por mês, antes mesmo de ligar qualquer servidor. Com apenas um
+servidor, o total cai para cerca de 125 dólares.
 
-### 12.3 Componentes de custo considerados (slide 41)
+Na **Azure**, a parte central é gratuita no plano básico, então o custo fica
+concentrado no servidor e no endereço público.
 
-Gestão do control plane · máquinas/computação · disco dos nós · registro de imagem ·
-balanceador/IP público · tráfego de saída · DNS (não utilizado) · observabilidade
-(não incluída) · impostos (não incluídos) · **tempo operacional da equipe** (ver 13).
+Na **Hetzner**, paga-se apenas o aluguel do servidor, que já inclui disco, endereço IP e
+uma grande quantidade de tráfego. Em troca, todo o trabalho de instalar e manter o
+Kubernetes fica com a equipe.
+
+Vale lembrar que o **tempo de trabalho da equipe** também é um custo, mesmo não
+aparecendo na conta: a opção mais barata é justamente a que exige mais trabalho manual.
 
 ---
 
-## 13. Comparação qualitativa — vantagens e desvantagens
+## 13. Vantagens e desvantagens
 
-### 13.1 Tabela (modelo do slide 43)
+### Comparação lado a lado
 
 | Critério | AWS (EKS) | Azure (AKS) | Hetzner (K3s) |
 |---|---|---|---|
-| Facilidade de configuração | Média — `eksctl` ajuda, mas há VPC/IAM e ~20 min | **Alta** — um comando, `--attach-acr` | Média — criar VPS, instalar K3s, firewall e exposição manual |
-| Kubernetes gerenciado | Sim | Sim | **Não** (autogerenciado) |
-| Escalabilidade | **Alta** — Cluster Autoscaler, muitos tipos de nó | **Alta** — autoscaler, *node pools* | Baixa/Média — manual; dá para adicionar *agents* |
-| Integração com registro | Boa — ECR + IAM do nó automático | **Excelente** — `--attach-acr` | Manual — Docker Hub ou registro próprio |
-| Observabilidade disponível | CloudWatch Container Insights (add-on) | Azure Monitor / Container Insights (add-on) | Nenhuma nativa — instalar Prometheus/Grafana |
-| Responsabilidade operacional | Média — control plane gerenciado; nós/add-ons com a equipe | Média | **Alta** — SO, K3s, backup, segurança e disponibilidade com a equipe |
-| Vantagens principais | Ecossistema amplo, IRSA, ALB/NLB, presença de mercado | Menor custo gerenciado (control plane grátis), integração Microsoft Entra, limpeza por *resource group* | Custo baixíssimo, controle total, simplicidade conceitual, tráfego generoso |
-| Desvantagens principais | Mais caro, mais componentes cobrados, curva inicial maior | Dependência do ecossistema Azure, cota de VM pode barrar | Sem HA, sem gerenciamento, tudo é responsabilidade da equipe |
-| Cenário recomendado | Empresa já em AWS, precisa de escala/HA e serviços AWS | Melhor custo-benefício gerenciado para equipe pequena | Laboratório, estudo, cargas pequenas e previsíveis |
+| Facilidade de configurar | Média: tem mais etapas e demora mais | Alta: poucos comandos, quase tudo automático | Média: a equipe instala e configura tudo |
+| Kubernetes pronto | Sim | Sim | Não, a equipe instala |
+| Crescer se precisar | Fácil, com muitos tipos de servidor | Fácil | Limitado, feito à mão |
+| Ligação com a prateleira de imagens | Boa, já vem autorizada | Muito boa, um único parâmetro | Manual |
+| Ferramentas de monitoramento | Existem, pagas à parte | Existem, pagas à parte | Não vêm prontas, precisam ser instaladas |
+| Quem cuida da manutenção | A Amazon e a equipe | A Microsoft e a equipe | Só a equipe |
+| Melhor para | Empresas que já usam a AWS e precisam crescer | Equipes pequenas que querem tudo pronto com bom preço | Estudos, testes e sistemas pequenos |
 
-### 13.2 Vantagens e desvantagens esperadas (slide 45)
+### Em poucas palavras
 
-**Kubernetes gerenciado (EKS/AKS):** menos esforço no *control plane*; integração
-nativa com identidade, registro, rede e observabilidade; recursos de HA e
-autoscaling. Em troca: mais itens cobrados, curva de aprendizagem do provedor e
-dependência de serviços específicos.
+**Serviços prontos (AWS e Azure):** a grande vantagem é não precisar cuidar da parte
+central do Kubernetes e ter recursos de crescimento, segurança e monitoramento à mão.
+A desvantagem é pagar por mais itens e ficar mais dependente dos serviços de cada
+empresa.
 
-**VPS com K3s (Hetzner):** maior controle e custo inicial muito menor. Em troca:
-a equipe assume segurança, atualização, backup e disponibilidade; sem HA do
-*control plane*.
+**Servidor alugado (Hetzner):** a grande vantagem é o **custo muito menor** e o
+controle total sobre o ambiente. A desvantagem é que **segurança, atualizações, cópias
+de segurança e disponibilidade** passam a ser responsabilidade da equipe.
 
 ---
 
 ## 14. Recomendação final
 
-**Para este trabalho** (aplicação demonstrativa, H2 em memória, réplica única, sem
-persistência): **Hetzner Cloud + K3s**.
+### Para este trabalho: Hetzner Cloud
 
-Justificativa:
+A equipe recomenda a **Hetzner** para esta aplicação, por três motivos:
 
-- Custo **~40× menor** que a AWS e **~14× menor** que a Azure no cenário comparado.
-- A capacidade do CX22 sobra para uma única réplica do Spring Boot.
-- Os diferenciais dos serviços gerenciados (HA do *control plane*, autoscaling,
-  add-ons) **não agregam** a uma aplicação que roda com 1 réplica e sem estado
-  persistente. Pagar por eles aqui seria desperdício.
+1. **Custo:** cerca de 4 dólares por mês, contra cerca de 56 na Azure e 155 na AWS.
+2. **Capacidade suficiente:** um único servidor pequeno dá conta, com folga, de uma
+   aplicação que roda em uma só cópia.
+3. **Os recursos extras não seriam aproveitados:** os serviços prontos se destacam em
+   alta disponibilidade e crescimento automático, mas esta aplicação guarda os dados
+   em memória e usa uma única cópia. Pagar por esses recursos aqui seria desperdício.
 
-**Se o projeto evoluísse para produção real** (banco gerenciado, múltiplas réplicas,
-HA, CI/CD, observabilidade): **Microsoft Azure (AKS)** — *control plane* sem custo no
-tier Free, `--attach-acr`, limpeza simples por *resource group* e bom equilíbrio
-entre esforço operacional e consumo.
+### Se fosse um sistema real: Microsoft Azure
 
-**AWS (EKS)** é a escolha quando a organização já opera em AWS ou precisa de
-integração profunda (IRSA, ALB Ingress, ecossistema de serviços) — aceitando o custo
-mais alto e a maior complexidade inicial.
+Se a aplicação evoluísse para uso real, com banco de dados de verdade, várias cópias e
+necessidade de ficar sempre no ar, a recomendação seria a **Azure**. Ela oferece o
+Kubernetes pronto, sem cobrar pela parte central, integra facilmente com a prateleira
+de imagens e permite apagar tudo de uma vez, com bom equilíbrio entre custo e esforço.
+
+### Quando a AWS faz sentido
+
+A **AWS** é a escolha certa para empresas que **já usam a Amazon** em outros sistemas
+ou que precisam dos serviços mais avançados dela, aceitando o custo maior e a
+configuração mais trabalhosa.
 
 ---
 
 ## 15. Limpeza dos recursos
 
-> Excluir **depois** de coletar todas as evidências. Confirmar no painel que nada
-> cobrado permaneceu (slides 54 e 62).
+### Por que isso é obrigatório
+
+Na nuvem, **tudo o que fica ligado continua sendo cobrado**, mesmo que ninguém use. Por
+isso, depois de registrar as evidências, **todos os recursos precisam ser apagados**, e
+é importante conferir no site de cada provedor que nada ficou para trás.
 
 ### 15.1 AWS
 
 ```bash
-# 1) Remover o Service ANTES do cluster (libera o Load Balancer)
 kubectl delete -f k8s/managed/service-loadbalancer.yaml
-kubectl delete deployment biblioteca
-kubectl delete secret biblioteca-secret
-
-# 2) Cluster + node group (stack CloudFormation)
 eksctl delete cluster --name biblioteca --region us-east-1
-
-# 3) Registro de imagem
 aws ecr delete-repository --repository-name biblioteca --region us-east-1 --force
 ```
 
-Conferir no Console: **EKS** (sem cluster), **EC2 → Load Balancers** (nenhum),
-**EC2 → Volumes** (sem EBS órfão), **CloudFormation** (stacks removidas), **VPC**
-criada pelo `eksctl` removida.
+A ordem importa: primeiro remove-se a **porta de entrada**, para que a Amazon apague o
+endereço público; depois o **cluster** inteiro; por fim, a **prateleira de imagens**.
+Em seguida, vale conferir no site da AWS que não restaram clusters, balanceadores ou
+discos.
 
 ### 15.2 Azure
 
@@ -785,121 +779,96 @@ criada pelo `eksctl` removida.
 az group delete --name rg-biblioteca --yes --no-wait
 ```
 
-Um comando remove **cluster, ACR, Load Balancer, IP público e discos**. Conferir em
-*Resource groups* que `rg-biblioteca` desapareceu (e o *node resource group*
-`MC_rg-biblioteca_biblioteca_eastus`).
+Como tudo foi criado dentro do mesmo grupo, **um único comando apaga tudo**: cluster,
+prateleira de imagens, endereço público e discos. Depois, basta confirmar no site da
+Azure que o grupo `rg-biblioteca` não existe mais.
 
 ### 15.3 Hetzner
 
-```bash
-# No servidor: desinstalar o K3s
-ssh root@IP_DA_VPS "/usr/local/bin/k3s-uninstall.sh"
-
-# Da sua máquina: destruir o servidor e recursos associados
-hcloud server delete biblioteca
-hcloud firewall delete <nome-ou-id-do-firewall>
-hcloud ssh-key delete minha-chave        # se não for reutilizar
-```
-
-Conferir no Console Hetzner: **Servers**, **Firewalls**, **Volumes**, **Floating IPs**
-e **Load Balancers** vazios. Verificar a aba **Usage/Billing**.
+Pelo site da Hetzner, apaga-se o **servidor**, o **firewall** e, se não for mais usada,
+a **chave SSH**. Com o servidor apagado, o K3s e a aplicação somem junto. Vale conferir
+a página de uso e cobrança para confirmar que não há nada ativo.
 
 ---
 
-## 16. Erros comuns e diagnóstico
+## 16. Problemas comuns e como resolver
 
-### 16.1 Comandos de diagnóstico (slide 56)
+Estes são os problemas mais prováveis ao seguir este tutorial, explicados de forma
+simples:
 
-```bash
-kubectl get all
-kubectl get events --sort-by=.metadata.creationTimestamp
-kubectl describe deployment biblioteca
-kubectl describe pod <NOME_DO_POD>
-kubectl logs deployment/biblioteca
-kubectl logs deployment/biblioteca --previous
-kubectl rollout status deployment/biblioteca
-kubectl get endpoints biblioteca
-```
-
-### 16.2 Problemas mais prováveis (slide 55) e soluções
-
-| Sintoma | Causa provável | Solução |
+| O que acontece | Por que acontece | Como resolver |
 |---|---|---|
-| `exec format error` no log do Pod | imagem `arm64` em nó `amd64` | rebuild com `docker buildx build --platform linux/amd64` |
-| `ImagePullBackOff` / `ErrImagePull` | registro privado sem autorização | tornar o repositório público, ou `--attach-acr` (Azure), ou `imagePullSecret` |
-| `CrashLoopBackOff` + `OOMKilled` em `describe pod` | memória insuficiente | subir `resources.limits.memory` para `1Gi` |
-| Pod reinicia durante o boot | `livenessProbe` cedo demais | já usamos `startupProbe`; aumentar `failureThreshold` se o host for lento |
-| `CreateContainerConfigError` | `Secret` ausente ou chave diferente de `jwt-secret` | criar `biblioteca-secret` antes do `Deployment` |
-| `Service` sem `EXTERNAL-IP` (AWS) por minutos | provisionamento do ELB | aguardar 3–5 min; checar `kubectl describe svc biblioteca` |
-| `EXTERNAL-IP` eterno `<pending>` (VPS) | sem *cloud controller* | usar `NodePort` (feito) ou o Klipper do K3s |
-| Página não abre em `IP:30080` (Hetzner) | firewall bloqueando a porta | liberar TCP 30080 no Firewall Hetzner |
-| `Service` sem *endpoints* | `selector` ≠ `labels` do Pod | ambos devem ser `app: biblioteca` |
-| Conexão na porta errada | `targetPort` incorreto | `targetPort: 8080` (porta do container) |
+| A aplicação não inicia e aparece `exec format error` | A imagem foi montada em um computador com processador diferente do usado na nuvem | Montar a imagem de novo com `--platform linux/amd64` |
+| Aparece `ImagePullBackOff` | A nuvem não conseguiu baixar a imagem, geralmente por falta de permissão | Deixar a imagem pública ou autorizar o cluster a acessar a prateleira |
+| A aplicação reinicia sozinha várias vezes e aparece `OOMKilled` | Faltou memória para a aplicação | Aumentar o limite de memória no `deployment.yaml` para 1 GB |
+| Aparece `CreateContainerConfigError` | O cofre com a senha não foi criado antes da aplicação | Criar o Secret e aplicar a aplicação de novo |
+| O endereço público demora a aparecer na AWS | A Amazon leva alguns minutos para criar o balanceador | Aguardar de 3 a 5 minutos |
+| A página não abre na Hetzner | O firewall está bloqueando a porta 30080 | Liberar a porta 30080 no firewall do servidor |
 
-### 16.3 Dois problemas para relatar no documento (slide 56)
+### Registro dos problemas enfrentados
 
-Descrever no relatório **pelo menos dois** problemas realmente enfrentados pela
-equipe, como foram investigados (qual comando revelou a causa) e como foram
-resolvidos.
+O enunciado pede que o documento descreva **pelo menos dois problemas realmente
+enfrentados** pela equipe durante a execução, explicando como foram investigados e
+como foram resolvidos. Esses relatos devem ser acrescentados aqui depois da execução.
 
 ---
 
 ## 17. Checklists finais
 
-### 17.1 Checklist técnico (slide 57)
+### 17.1 Checklist técnico
 
 - [ ] A imagem usa **Java 21**.
-- [ ] O build Maven terminou sem erros.
-- [ ] A aplicação funciona localmente em container (`http://localhost:8080/login`).
-- [ ] O segredo JWT é fornecido **externamente** (`Secret` → env), nunca no repositório.
-- [ ] O `Deployment` usa **1 réplica** (H2 em memória).
-- [ ] O Pod fica `1/1 Running`.
-- [ ] O `Service` encaminha a porta pública para **8080**.
-- [ ] A aplicação é acessível **externamente** nos três ambientes.
-- [ ] Login + **uma operação de escrita** validados nos três ambientes.
-- [ ] Existe procedimento de **limpeza** para cada provedor (seção 15).
+- [ ] A compilação terminou sem erros.
+- [ ] A aplicação funcionou no computador, em `http://localhost:8080/login`.
+- [ ] A chave secreta é informada de fora, e nunca está no repositório.
+- [ ] A aplicação roda com **uma única cópia**.
+- [ ] A cópia aparece como `Running` e `1/1`.
+- [ ] A porta de entrada leva o acesso até a porta **8080** da aplicação.
+- [ ] A aplicação abre pela internet nas três nuvens.
+- [ ] O login e um cadastro foram feitos nas três nuvens.
+- [ ] Existe um procedimento de limpeza para cada provedor.
 
-### 17.2 Checklist do e-mail de entrega (slides 49–50)
+### 17.2 Checklist do e-mail de entrega
 
 - [ ] Destinatário: **diogo.p.ranghetti@gmail.com**.
-- [ ] Assunto: `[Cloud DevOps] T3 – Biblioteca em Kubernetes` (a equipe não tem número; identificar pelos integrantes no corpo).
-- [ ] Corpo lista **todos os integrantes**.
+- [ ] Assunto: `[Cloud DevOps] T3 – Biblioteca em Kubernetes`.
+- [ ] Corpo do e-mail com **todos os integrantes**.
 - [ ] **PDF** anexado e legível.
-- [ ] Arquivos editáveis ou **link do repositório** com acesso ao professor.
-- [ ] **Nenhuma** credencial/segredo real enviada ou visível em prints.
-- [ ] Tabela **ou** gráfico comparativo de custos presente no documento.
-- [ ] Os **três provedores** claramente identificados (AWS, Azure, Hetzner).
-- [ ] Enviado **antes do encerramento da aula**.
+- [ ] **Link do repositório** com acesso liberado ao professor.
+- [ ] **Nenhuma** senha ou chave real enviada ou visível em capturas.
+- [ ] Tabela de custos presente no documento.
+- [ ] Os **três provedores** claramente identificados.
+- [ ] Envio feito **antes do fim da aula**.
 
-### 17.3 Entregáveis (slide 46)
+### 17.3 O que é entregue
 
-Documento PDF · link do repositório · `Dockerfile` e `.dockerignore` · manifestos
-Kubernetes · tutorial dos três provedores · evidências · tabela/gráfico de custos ·
-comparação de vantagens/desvantagens · recomendação final justificada ·
-identificação dos integrantes.
+Documento em PDF, link do repositório, Dockerfile e `.dockerignore`, arquivos de
+configuração do Kubernetes, tutorial das três nuvens, evidências, comparação de
+custos, vantagens e desvantagens, recomendação final e identificação dos integrantes.
 
 ---
 
 ## 18. Glossário
 
-| Termo | Significado |
+| Termo | O que significa |
 |---|---|
-| Imagem | Pacote imutável com aplicação, runtime e dependências |
-| Container | Instância em execução de uma imagem |
-| Registro | Serviço que armazena e distribui imagens (Docker Hub, ECR, ACR) |
-| Cluster | Conjunto de recursos que executa workloads Kubernetes |
-| Node | Máquina que executa Pods |
-| Pod | Menor unidade implantável do Kubernetes |
-| Deployment | Recurso que mantém e atualiza um conjunto de Pods |
-| Service | Endpoint estável que encaminha tráfego para Pods selecionados |
-| EKS / AKS | Kubernetes gerenciado da AWS / da Azure |
-| K3s | Distribuição Kubernetes leve, de nó único neste trabalho |
-| VPS | Servidor virtual privado administrado pelo cliente |
-| Control plane | Componentes que coordenam o estado do cluster |
-| Load balancer | Recurso que distribui tráfego e fornece acesso externo |
-| Egress | Tráfego de dados que sai do provedor/região |
-| NodePort | Porta fixa aberta em todos os nós para expor um Service |
-| Ingress | Regra de roteamento HTTP(S) para Services, via *controller* (Traefik no K3s) |
+| **Nuvem** | Uso de computadores de outra empresa pela internet, pagando pelo tempo de uso |
+| **Docker** | Ferramenta que empacota uma aplicação com tudo o que ela precisa |
+| **Imagem** | O pacote fechado gerado pelo Docker, que funciona igual em qualquer lugar |
+| **Container** | Uma imagem em funcionamento |
+| **Dockerfile** | O arquivo com a receita para montar a imagem |
+| **Prateleira de imagens (registro)** | Serviço que guarda imagens para serem baixadas, como Docker Hub, ECR e ACR |
+| **Kubernetes** | Sistema que liga as aplicações, acompanha se estão funcionando e as religa quando param |
+| **Cluster** | O conjunto de servidores controlado pelo Kubernetes |
+| **Servidor (nó)** | Cada computador que roda as aplicações dentro do cluster |
+| **Pod** | A cópia da aplicação em funcionamento dentro do Kubernetes |
+| **Deployment** | A descrição de qual aplicação deve rodar e quantas cópias devem existir |
+| **Service** | A porta de entrada que permite acessar a aplicação |
+| **Secret** | O cofre do Kubernetes para guardar senhas e chaves |
+| **EKS e AKS** | Os serviços de Kubernetes pronto da Amazon e da Microsoft |
+| **K3s** | Uma versão leve do Kubernetes, instalada pela própria equipe |
+| **VPS** | Um servidor virtual alugado, administrado por quem o aluga |
+| **Firewall** | Proteção que decide quais acessos podem chegar ao servidor |
 
 ---
 
@@ -923,8 +892,7 @@ identificação dos integrantes.
 - Microsoft. *Azure Kubernetes Service (AKS) Pricing*. https://azure.microsoft.com/pricing/details/kubernetes-service/
 - Microsoft. *Azure Container Registry Pricing*. https://azure.microsoft.com/pricing/details/container-registry/
 - Hetzner. *Cloud — Pricing*. https://www.hetzner.com/cloud/
-- Hetzner Docs. *Install and configure K3s / kubectl*. https://community.hetzner.com/tutorials/
-- Rancher / SUSE. *K3s Documentation*. https://docs.k3s.io/
+- K3s. *K3s Documentation*. https://docs.k3s.io/
 
 ---
 
