@@ -15,6 +15,3 @@ azure.json
 # Build
 target/
 *.jar
-
-# PDFs gerados (vao como anexo, nao versionados)
-T3-*.pdf
