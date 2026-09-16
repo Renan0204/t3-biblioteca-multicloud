@@ -16,6 +16,5 @@ azure.json
 target/
 *.jar
 
-# PDFs gerados (vao como anexo do e-mail, nao versionados)
-T3-Biblioteca-Multicloud.pdf
-T3-Apresentacao.pdf
+# PDFs gerados (vao como anexo, nao versionados)
+T3-*.pdf
